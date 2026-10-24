@@ -70,7 +70,19 @@ export class ConnectorHub {
   async connect(id: string): Promise<void> {
     const cfg = this.requireConfig(id);
     const client = new Client({ name: "agent-gateway", version: VERSION });
-    await client.connect(this.createTransport(cfg));
+    // Un conector que no responde no debe bloquear el arranque del gateway: se reintenta en el ciclo de salud.
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`sin respuesta en ${cfg.timeoutSeconds} s`)), cfg.timeoutSeconds * 1000);
+    });
+    try {
+      await Promise.race([client.connect(this.createTransport(cfg)), timeout]);
+    } catch (error) {
+      await client.close().catch(() => undefined);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
     await this.attach(id, client);
   }
 

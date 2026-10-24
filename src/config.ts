@@ -74,6 +74,42 @@ const rule = z.strictObject({
   effect,
   approver: approver.default("owner"),
   message: z.string().optional(),
+  /** observe: la regla se evalúa y se registra, pero no se aplica. Útil para probar reglas nuevas sin cortar el trabajo. */
+  mode: z.enum(["enforce", "observe"]).default("enforce"),
+});
+
+const guardrailCheck = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("prompt_injection") }),
+  z
+    .strictObject({ type: z.literal("regex"), pattern: z.string().min(1), flags: z.string().regex(/^[gimsuy]*$/).optional() })
+    .refine((c) => {
+      try {
+        new RegExp(c.pattern, c.flags);
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Expresión regular inválida"),
+  z.strictObject({
+    type: z.literal("webhook"),
+    url: z.string().url(),
+    headers: z.record(z.string(), z.string()).default({}),
+    timeoutMs: z.number().int().positive().max(30_000).default(3000),
+  }),
+]);
+
+const guardrail = z.strictObject({
+  id: z.string().min(1),
+  description: z.string().optional(),
+  /** before: argumentos del agente; after: resultado que recibirá el agente. */
+  stage: z.enum(["before", "after"]),
+  when: condition.optional(),
+  check: guardrailCheck,
+  /** deny: bloquea; flag: registra (y en "after" advierte al agente). */
+  action: z.enum(["deny", "flag"]).default("deny"),
+  /** Si el chequeo falla (p. ej. webhook caído): allow solo registra; deny aplica la acción. */
+  onError: z.enum(["allow", "deny"]).default("allow"),
+  message: z.string().optional(),
 });
 
 const tier = z.strictObject({
@@ -200,6 +236,7 @@ export const configSchema = z
       .prefault({}),
     connectors: z.array(connector).default([]),
     rules: z.array(rule).default([]),
+    guardrails: z.array(guardrail).default([]),
   })
   .superRefine((c, ctx) => {
     const duplicates = (values: (string | number)[]) => values.filter((v, i) => values.indexOf(v) !== i);
@@ -211,6 +248,9 @@ export const configSchema = z
     }
     for (const id of duplicates(c.rules.map((r) => r.id))) {
       ctx.addIssue({ code: "custom", message: `Regla duplicada: ${id}`, path: ["rules"] });
+    }
+    for (const id of duplicates(c.guardrails.map((g) => g.id))) {
+      ctx.addIssue({ code: "custom", message: `Guardrail duplicado: ${id}`, path: ["guardrails"] });
     }
     const known = new Set(c.connectors.map((x) => x.id));
     c.rules.forEach((r, i) => {

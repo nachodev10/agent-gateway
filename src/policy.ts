@@ -28,6 +28,8 @@ export interface Decision {
   ruleId: string | null;
   approver: ApproverKind;
   source: "status" | "grant" | "clearance" | "rule" | "tier";
+  /** Reglas en modo observación que habrían aplicado (no afectan la decisión). */
+  observed?: { ruleId: string; effect: Effect }[];
 }
 
 export interface Visibility {
@@ -129,7 +131,18 @@ export class PolicyEngine {
         this.matches(r.when, subject, tool, args, now, false) &&
         !(r.unless && this.matches(r.unless, subject, tool, args, now, false)),
     );
-    return this.combine(matched, subject.agent, tool);
+    const decision = this.combine(
+      matched.filter((r) => r.mode === "enforce"),
+      subject.agent,
+      tool,
+    );
+    const observed = matched.filter((r) => r.mode === "observe").map((r) => ({ ruleId: r.id, effect: r.effect }));
+    return observed.length ? { ...decision, observed } : decision;
+  }
+
+  /** Evalúa una condición suelta (la usan los guardrails). */
+  conditionMatches(c: ConditionConfig, subject: PolicySubject, tool: ToolRef, args: Record<string, unknown>, now: Date): boolean {
+    return this.matches(c, subject, tool, args, now, false);
   }
 
   /** Decide si la herramienta aparece en el catálogo del agente, sin conocer aún los argumentos. */
@@ -137,14 +150,15 @@ export class PolicyEngine {
     const hard = this.hardLimits(subject.agent, tool);
     if (hard) return { visible: false, approval: "never", reason: hard.reason };
 
-    const staticRules = this.config.rules.filter(
+    const enforced = this.config.rules.filter((r) => r.mode === "enforce");
+    const staticRules = enforced.filter(
       (r) =>
         !argDependent(r) &&
         this.matches(r.when, subject, tool, {}, now, false) &&
         !(r.unless && this.matches(r.unless, subject, tool, {}, now, false)),
     );
     // Reglas que dependen de los argumentos y que podrían aplicar.
-    const dynamicRules = this.config.rules.filter(
+    const dynamicRules = enforced.filter(
       (r) =>
         argDependent(r) &&
         this.matches(r.when, subject, tool, {}, now, true) &&

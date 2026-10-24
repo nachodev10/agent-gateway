@@ -13,6 +13,7 @@ import { Dlp } from "./dlp.js";
 import { DpopVerifier } from "./dpop.js";
 import { type AgentContext, type CallOutcome, Governance } from "./governance.js";
 import { type Logger, VERSION, createLogger, errorMessage } from "./log.js";
+import { GuardrailEngine } from "./guardrails.js";
 import { createAgentMcpServer } from "./mcp.js";
 import { PassportIssuer } from "./passport.js";
 import { PolicyEngine } from "./policy.js";
@@ -30,6 +31,8 @@ export interface GatewayOptions {
   clock?: () => Date;
   /** Clave privada (JWK) para firmar pasaportes; si falta, se genera y se guarda en la base. */
   signingJwk?: string;
+  /** fetch para los guardrails webhook (inyectable en pruebas). */
+  fetch?: typeof fetch;
 }
 
 export interface RunningServer {
@@ -58,7 +61,8 @@ export async function createGateway(options: GatewayOptions): Promise<Gateway> {
   const hub = new ConnectorHub(config, log);
   const passport = new PassportIssuer(config, store, clock(), options.signingJwk);
   const dpop = new DpopVerifier();
-  const governance = new Governance({ config, store, audit, policy, dlp, hub, passport, log, clock });
+  const guardrails = new GuardrailEngine(config, policy, options.fetch);
+  const governance = new Governance({ config, store, audit, policy, dlp, hub, passport, guardrails, log, clock });
   const services: Services = { config, store, audit, policy, dlp, hub, governance, passport, dpop, log, clock, adminToken: options.adminToken };
 
   const agentRequest = (req: Request): AgentRequest => ({

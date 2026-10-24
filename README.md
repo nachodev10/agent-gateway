@@ -55,6 +55,19 @@ En cada llamada:
 | Botón rojo | Suspensión inmediata, cortacircuitos automático y baja ligada al ciclo de vida del empleado. |
 | Transparencia con el equipo | Se registra lo que el agente hace en sistemas de la empresa, no el equipo ni la vida personal del empleado. |
 
+## Guardrails
+
+Además de la política (qué puede hacer cada agente), los guardrails revisan **el contenido** de cada llamada:
+
+| Etapa | Qué revisa | Ejemplo incluido |
+|---|---|---|
+| `before` | Los argumentos que envía el agente | Bloquear credenciales enviadas a un sistema |
+| `after` | El resultado que recibirá el agente | Advertir instrucciones inyectadas en datos (un correo, un formulario, una ficha) |
+
+Tipos de chequeo: `prompt_injection` (patrones en español e inglés), `regex` y `webhook` (un validador externo que responde `{ "verdict": true|false }`). Acción `deny` (bloquea) o `flag` (registra y, en `after`, antepone un aviso al resultado). `onError` decide qué pasa si el validador no responde.
+
+Las reglas también aceptan `mode: observe`: se evalúan y quedan en la bitácora sin aplicarse, para medir el impacto de una regla antes de activarla.
+
 ## Agentes de terceros
 
 Un agente de otra organización (proveedor, consultora, cliente) entra igual que el de un empleado, con controles más estrictos:
@@ -99,6 +112,8 @@ El gateway firma un **pasaporte** (JWT ES256) que dice quién es el agente, de q
 - **Bitácora encadenada** con verificación de integridad y exportación JSON por línea para un SIEM.
 - **Agentes de terceros** patrocinados por un empleado, con topes de nivel y de datos y token ligado a su clave (DPoP).
 - **Pasaporte del agente** firmado por el gateway y verificable por cualquier sistema.
+- **Guardrails** antes y después de cada llamada (inyección de instrucciones, regex, validador externo) y reglas en modo observación.
+- **Imagen Docker** de producción.
 - **Ciclo de vida**: tokens que vencen y rotan, recertificación periódica, cortacircuitos, desvinculación que suspende agentes y revoca tokens.
 - **Consola web** en español para monitorear, aprobar, suspender e inscribir agentes.
 
@@ -169,6 +184,16 @@ AGW_CONFIG=config/gateway.yaml npm run dev        # desarrollo
 npm run build
 NODE_ENV=production npm start                     # producción (exige AGW_ADMIN_TOKEN)
 ```
+
+Con Docker (monta tu configuración y un volumen para la base y la llave de firma):
+
+```bash
+docker build -t agent-gateway .
+docker run -p 8080:8080 -e AGW_ADMIN_TOKEN="$AGW_ADMIN_TOKEN" \
+  -v "$PWD/config/gateway.yaml:/app/config/gateway.yaml:ro" -v agw-data:/app/data agent-gateway
+```
+
+Un conector que no responde no bloquea el arranque: queda marcado como desconectado y se reintenta cada 30 segundos.
 
 Alta de personas (en producción vendrán del proveedor de identidad):
 
@@ -292,6 +317,7 @@ src/
   auth.ts · tokens.ts    Identidad de agentes y personas
   dpop.ts · jose.ts      Tokens ligados a la clave del agente (DPoP) y firmas ES256
   passport.ts            Pasaporte firmado del agente
+  guardrails.ts          Chequeos de contenido antes y después de cada llamada
   store.ts               Persistencia (SQLite)
 public/                  Consola web (sin build)
 examples/                Conectores de demostración (CRM y Finanzas) y cliente para agentes de terceros

@@ -105,6 +105,7 @@ const { tools } = await client.listTools();
 console.log("\n→ Herramientas visibles para el agente:");
 for (const t of tools) console.log(`  - ${t.name}`);
 await step("Lectura: el RUT llega redactado (requiere autorización restringida)", "crm_buscar_clientes", { texto: "andes" });
+await step("Dato contaminado: el guardrail advierte de una inyección de instrucciones", "crm_buscar_clientes", { texto: "robles" });
 await step("Acción prohibida por política", "crm_eliminar_cliente", { clienteId: "C-1001" });
 await step("Escritura: requiere aprobación del responsable", "crm_registrar_nota", { clienteId: "C-1001", nota: "Agendar reunión de renovación" });
 await step("Pago alto: lo aprueba la jefatura", "finanzas_emitir_pago", { proveedor: "Imprenta Sur", monto: 1_200_000, moneda: "CLP", glosa: "Catálogos 2027" });

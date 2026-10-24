@@ -183,3 +183,37 @@ rules:
     when: { access: [write], outsideBusinessHours: true }
     effect: require_approval
     approver: owner
+
+  # Modo observación: se evalúa y queda en la bitácora, pero no se aplica.
+  # Sirve para medir el impacto de una regla antes de activarla.
+  - id: piloto-todo-pago-con-aprobacion
+    description: Evaluar si todo pago, sin importar el monto, debería requerir aprobación.
+    when: { connectors: [finanzas], tools: [emitir_pago] }
+    effect: require_approval
+    mode: observe
+
+# Guardrails: chequeos sobre el contenido, además de la política.
+# stage before = argumentos del agente; after = resultado que recibirá el agente.
+# action deny = bloquea; flag = registra y, en "after", advierte al agente.
+guardrails:
+  - id: inyeccion-en-resultados
+    description: Instrucciones inyectadas en datos que vuelven al agente
+    stage: after
+    check: { type: prompt_injection }
+    action: flag
+
+  - id: sin-credenciales-en-argumentos
+    description: Ningún agente envía credenciales a un sistema de la empresa
+    stage: before
+    check: { type: regex, pattern: "\\[REDACTADO:secreto\\]" } # el DLP ya marcó la credencial
+    action: deny
+    message: El agente intentó enviar una credencial a un sistema de la empresa
+
+  # Validador externo (p. ej. un servicio anti-inyección o de clasificación de datos).
+  # Recibe { stage, agent, responsible, tool, text } y responde { "verdict": true|false, "reason": "…" }.
+  # - id: validador-externo
+  #   stage: after
+  #   when: { origins: [third_party] }
+  #   check: { type: webhook, url: "https://validador.interno/check", headers: { Authorization: "Bearer ${VALIDADOR_TOKEN}" } }
+  #   action: deny
+  #   onError: deny

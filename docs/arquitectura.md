@@ -125,6 +125,17 @@ El gateway emite un JWT firmado con ES256 que describe al agente, su organizaci�
 
 Es deliberadamente de vida corta: la revocación se aplica en el gateway en cada request, y el pasaporte solo informa. Esta es la alternativa sin blockchain a "una llave por agente": identidad criptográfica verificable, revocable al instante y sin datos personales en un registro público.
 
+## Guardrails
+
+La política decide *si* un agente puede usar una herramienta; los guardrails revisan *qué contenido* va y viene. El diseño toma la idea de hooks del gateway de modelos de Portkey (chequeos antes y después, veredicto, bloquear u observar, validador externo por webhook) y la aplica a herramientas:
+
+- `before` revisa los argumentos (ya sin credenciales) antes de pedir aprobación o tocar el sistema.
+- `after` revisa el resultado ya redactado por el DLP. El riesgo principal es la inyección indirecta: instrucciones escondidas en datos de terceros (correos, formularios, documentos) que el agente podría obedecer. Con `flag`, el gateway antepone un aviso al resultado; con `deny`, lo retiene (la acción ya ocurrió en el sistema, y así queda registrado).
+
+## Relación con un gateway de modelos
+
+Agent Gateway gobierna lo que el agente **toca** (herramientas y datos). Un gateway de modelos como Portkey gobierna **con qué modelo** piensa (ruteo, reintentos, costos). Son capas complementarias: para datos `restricted`, la recomendación es exigir que el agente use el modelo corporativo detrás de un gateway de modelos, en lugar de reimplementar ese ruteo aquí.
+
 ## Clasificación de datos y proveedores de modelo
 
 Todo lo que el gateway entrega a un agente llega al proveedor de modelo que eligió el empleado. Por eso la autorización de un agente tiene dos techos:

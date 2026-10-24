@@ -37,7 +37,9 @@ export interface ApiResponse {
   body: any;
 }
 
-export async function startGateway(options: { config?: GatewayConfig; now?: Date; servers?: { crm?: McpServer; finanzas?: McpServer } } = {}) {
+export async function startGateway(
+  options: { config?: GatewayConfig; now?: Date; servers?: { crm?: McpServer; finanzas?: McpServer }; fetch?: typeof fetch } = {},
+) {
   let current = options.now ?? WEEKDAY_NOON;
   const gateway = await createGateway({
     config: options.config ?? testConfig(),
@@ -46,6 +48,7 @@ export async function startGateway(options: { config?: GatewayConfig; now?: Date
     connect: false,
     logger: createLogger({ silent: true }),
     clock: () => current,
+    fetch: options.fetch,
   });
   await attachInMemory(gateway, "crm", options.servers?.crm ?? createCrmServer());
   await attachInMemory(gateway, "finanzas", options.servers?.finanzas ?? createFinanzasServer());
