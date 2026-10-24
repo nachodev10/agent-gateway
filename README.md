@@ -2,7 +2,7 @@
 
 **BYOA responsable: invita a los agentes de IA de tu equipo a trabajar, bajo tus reglas.**
 
-Tus empleados ya usan agentes de IA: Claude Code, Cursor, agentes autohospedados en su Mac. Prohibirlos no los elimina, los vuelve invisibles. Agent Gateway hace lo contrario: los invita a trabajar con los sistemas de la empresa, gobernados, monitoreados y con **una persona responsable por cada agente**.
+Tus empleados ya usan agentes de IA: Claude Code, Cursor, agentes autohospedados en su Mac. Y cada vez más proveedores, consultoras y clientes quieren que sus propios agentes trabajen con tu empresa. Prohibirlos no los elimina, los vuelve invisibles. Agent Gateway hace lo contrario: los invita a trabajar con los sistemas de la empresa, gobernados, monitoreados y con **una persona responsable por cada agente**.
 
 > **BYOA responsable** (Bring Your Own Agent): el empleado trae su agente; la empresa pone las reglas; un humano responde por él.
 
@@ -55,6 +55,36 @@ En cada llamada:
 | Botón rojo | Suspensión inmediata, cortacircuitos automático y baja ligada al ciclo de vida del empleado. |
 | Transparencia con el equipo | Se registra lo que el agente hace en sistemas de la empresa, no el equipo ni la vida personal del empleado. |
 
+## Agentes de terceros
+
+Un agente de otra organización (proveedor, consultora, cliente) entra igual que el de un empleado, con controles más estrictos:
+
+| Control | Comportamiento por defecto (`thirdParty` en la configuración) |
+|---|---|
+| Patrocinador | Lo inscribe un empleado, que queda como su responsable interno |
+| Aprobación | Solo Seguridad; nunca el propio patrocinador |
+| Techo | Nivel máximo 1 (Asistente) y datos hasta `internal`, sin importar su proveedor de modelo |
+| Credencial | Token ligado a la clave del agente (DPoP, RFC 9449): si el token se filtra, no sirve sin la clave privada, que nunca sale del tercero |
+| Vigencia | Token de 7 días y recertificación cada 30 |
+| Reglas | Condiciones `origins: [third_party]` y `organizations: [...]` para políticas específicas |
+
+Flujo:
+
+1. El tercero genera su clave y entrega solo la pública: `tsx examples/third-party-agent.ts keygen agente.key.json`.
+2. El patrocinador inscribe el agente (tipo "Agente de un tercero") y Seguridad lo aprueba.
+3. El patrocinador emite el token pegando la clave pública; el token queda ligado a ella.
+4. El tercero se conecta firmando cada request: `AGW_TOKEN=agw_… tsx examples/third-party-agent.ts run agente.key.json`. Con el SDK de MCP basta con pasar `fetch: dpopFetch(token, clave)` al transporte HTTP.
+
+## Pasaporte del agente
+
+El gateway firma un **pasaporte** (JWT ES256) que dice quién es el agente, de qué organización viene, quién responde por él y qué tiene autorizado.
+
+- Cada conector lo recibe en cada llamada en `_meta["agent-gateway/passport"]` y puede verificarlo con la clave pública de `/.well-known/jwks.json`.
+- El agente obtiene el suyo en `GET /v1/passport` para presentarlo ante otros sistemas.
+- `POST /passports/verify` verifica la firma y además informa si el agente sigue activo.
+- Es de vida corta (15 minutos por defecto). La revocación real ocurre en el gateway, que valida el estado en cada request.
+- La clave de firma se genera y guarda en la base, o se entrega con `AGW_SIGNING_KEY` (JWK privado) desde un gestor de secretos.
+
 ## Qué incluye esta versión
 
 - **Gateway MCP** (Streamable HTTP): agrega los conectores de la empresa en un único servidor MCP por agente, con instrucciones de operación personalizadas.
@@ -67,6 +97,8 @@ En cada llamada:
 - **Aprobaciones humanas** con segregación de funciones (responsable, jefatura, seguridad) y espera opcional para no interrumpir al agente.
 - **DLP** con detectores de secretos, tarjetas (Luhn), RUT (dígito verificador), email y teléfono.
 - **Bitácora encadenada** con verificación de integridad y exportación JSON por línea para un SIEM.
+- **Agentes de terceros** patrocinados por un empleado, con topes de nivel y de datos y token ligado a su clave (DPoP).
+- **Pasaporte del agente** firmado por el gateway y verificable por cualquier sistema.
 - **Ciclo de vida**: tokens que vencen y rotan, recertificación periódica, cortacircuitos, desvinculación que suspende agentes y revoca tokens.
 - **Consola web** en español para monitorear, aprobar, suspender e inscribir agentes.
 
@@ -203,6 +235,11 @@ Agentes (token `agw_…`):
 | POST | `/mcp` | Servidor MCP (Streamable HTTP, sin sesión) |
 | GET | `/v1/tools` | Herramientas visibles para el agente |
 | POST | `/v1/tools/:nombre/call` | Ejecuta una herramienta con gobierno |
+| GET | `/v1/passport` | Pasaporte firmado del agente |
+
+Los agentes con token ligado a una clave usan `Authorization: DPoP agw_…` más el encabezado `DPoP` con la prueba firmada.
+
+Públicos: `GET /.well-known/jwks.json` (clave para verificar pasaportes) y `POST /passports/verify`.
 
 Consola (token `agp_…` de una persona o token de administración):
 
@@ -212,7 +249,8 @@ Consola (token `agp_…` de una persona o token de administración):
 | GET/POST/PATCH | `/api/people`, `/api/people/:id`, `/api/people/:id/tokens` | Administración |
 | GET/POST | `/api/agents`, `/api/agents/:id` | El empleado inscribe su propio agente |
 | POST | `/api/agents/:id/approve` · `reject` · `reactivate` | Jefatura del responsable o seguridad |
-| POST | `/api/agents/:id/tokens` · `recertify` | Solo el responsable |
+| POST | `/api/agents/:id/tokens` · `recertify` | Solo el responsable (`publicJwk` liga el token a la clave del agente) |
+| GET | `/api/agents/:id/passport` | Quien puede ver el agente |
 | POST | `/api/agents/:id/suspend` | Responsable, jefatura o seguridad |
 | GET/POST | `/api/approvals`, `/api/approvals/:id/decide` | Según el aprobador de cada solicitud |
 | GET | `/api/audit`, `/api/audit/verify` | Alcance propio · verificación solo seguridad |
@@ -223,13 +261,13 @@ Consola (token `agp_…` de una persona o token de administración):
 - **No cubre** lo que el agente haga por fuera (por ejemplo, controlando un navegador con la sesión del empleado). Para eso: nunca entregar credenciales corporativas a agentes, restringir aplicaciones OAuth de terceros en Google Workspace o Microsoft 365 y, en equipos administrados, forzar por MDM la configuración MCP de los agentes.
 - **Inyección de prompts**: el gateway no impide que un agente sea manipulado, pero acota el daño con mínimo privilegio, aprobación humana para lo consecuente, DLP y cortacircuitos.
 - **Bitácora**: evidencia de manipulación, no prueba absoluta; quien controle la base podría recalcular la cadena. Anclar el último hash fuera del sistema está en la hoja de ruta.
-- **Tokens portadores**: si se filtran, sirven hasta que se revocan o vencen.
+- **Tokens portadores**: los de empleados (Claude Code y otros clientes MCP envían un encabezado fijo) sirven hasta que se revocan o vencen si se filtran. Los de terceros van ligados a su clave con DPoP.
 - **Una instancia**: SQLite (módulo nativo de Node). Para alta disponibilidad, Postgres.
 
 ## Hoja de ruta
 
 1. SSO (OIDC) para la consola y aprovisionamiento SCIM desde el proveedor de identidad.
-2. Autorización OAuth 2.1 de MCP: el empleado autoriza a su agente con su SSO, sin copiar tokens; tokens ligados al dispositivo (DPoP).
+2. Autorización OAuth 2.1 de MCP: el empleado autoriza a su agente con su SSO, sin copiar tokens, y DPoP también para agentes de empleados cuando sus clientes lo soporten.
 3. Aprobaciones desde Slack, Teams o email en un clic.
 4. Postgres (por ejemplo, Supabase) y varias instancias.
 5. OpenTelemetry, envío a SIEM y anclaje externo de la bitácora.
@@ -252,9 +290,11 @@ src/
   mcp.ts                 Servidor MCP por agente
   api.ts                 API de la consola
   auth.ts · tokens.ts    Identidad de agentes y personas
+  dpop.ts · jose.ts      Tokens ligados a la clave del agente (DPoP) y firmas ES256
+  passport.ts            Pasaporte firmado del agente
   store.ts               Persistencia (SQLite)
 public/                  Consola web (sin build)
-examples/                Conectores de demostración (CRM y Finanzas)
+examples/                Conectores de demostración (CRM y Finanzas) y cliente para agentes de terceros
 scripts/demo.ts          Demo de punta a punta
 test/                    Pruebas unitarias y de punta a punta con un cliente MCP real
 ```

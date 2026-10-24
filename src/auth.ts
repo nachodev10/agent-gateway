@@ -1,6 +1,6 @@
 import type { AgentContext } from "./governance.js";
 import { HttpError, type Services } from "./services.js";
-import { hashToken, safeEqual, tokenKind } from "./tokens.js";
+import { hashToken, parseAuthorization, safeEqual, tokenKind } from "./tokens.js";
 import type { Person } from "./types.js";
 
 /**
@@ -12,15 +12,31 @@ import type { Person } from "./types.js";
 
 export type Actor = { kind: "admin" } | { kind: "person"; person: Person };
 
+/** Lo que se necesita del request HTTP para autenticar a un agente. */
+export interface AgentRequest {
+  authorization: string | undefined;
+  dpop: string | undefined;
+  method: string;
+  /** URL pública completa del request (para validar `htu` en DPoP). */
+  url: string;
+}
+
+/** URL base pública: la configurada o la que llegó en el request. */
+export function publicBaseUrl(s: Services, protocol: string, host: string | undefined): string {
+  return (s.config.server.publicUrl ?? `${protocol}://${host ?? "localhost"}`).replace(/\/$/, "");
+}
+
 export const actorLabel = (a: Actor) => (a.kind === "admin" ? "admin" : `person:${a.person.id}`);
 export const personIdOf = (a: Actor) => (a.kind === "person" ? a.person.id : null);
 export const isAdmin = (a: Actor) => a.kind === "admin" || a.person.role === "admin";
 export const isSecurity = (a: Actor) => isAdmin(a) || (a.kind === "person" && a.person.role === "security");
 
-export function authenticateAgent(s: Services, token: string | null): AgentContext {
+export function authenticateAgent(s: Services, req: AgentRequest): AgentContext {
   const now = s.clock();
-  if (!token || tokenKind(token) !== "agent") {
-    throw new HttpError(401, "Se requiere un token de agente (Authorization: Bearer agw_…)", "unauthorized");
+  const auth = parseAuthorization(req.authorization);
+  const token = auth?.token;
+  if (!auth || !token || tokenKind(token) !== "agent") {
+    throw new HttpError(401, "Se requiere un token de agente (Authorization: Bearer agw_… o DPoP agw_…)", "unauthorized");
   }
   const record = s.store.findTokenByHash(hashToken(token));
   if (!record || record.kind !== "agent") throw new HttpError(401, "Token de agente inválido", "unauthorized");
@@ -35,6 +51,21 @@ export function authenticateAgent(s: Services, token: string | null): AgentConte
   };
 
   if (record.revokedAt) reject(401, "token_revoked", "El token fue revocado. Tu responsable debe emitir uno nuevo");
+  // Token ligado a una clave: sin la prueba firmada con esa clave, el token no sirve.
+  if (record.jkt) {
+    if (auth.scheme !== "dpop") reject(401, "dpop_required", "Este token está ligado a una clave: usa Authorization: DPoP y el encabezado DPoP");
+    const proof = s.dpop.verify(req.dpop, {
+      method: req.method,
+      url: req.url,
+      accessToken: token,
+      expectedJkt: record.jkt,
+      now,
+      maxAgeSeconds: s.config.dpop.maxAgeSeconds,
+    });
+    if (!proof.ok) reject(401, "dpop_invalid", proof.reason);
+  } else if (auth.scheme === "dpop") {
+    reject(401, "dpop_unbound", "Este token no está ligado a una clave; usa Authorization: Bearer");
+  }
   if (record.expiresAt && record.expiresAt < now.toISOString()) reject(401, "token_expired", "El token venció. Tu responsable debe emitir uno nuevo");
   if (owner.status !== "active") reject(403, "owner_inactive", "El responsable de este agente ya no está activo en la empresa");
   if (agent.status !== "active") {
@@ -45,7 +76,7 @@ export function authenticateAgent(s: Services, token: string | null): AgentConte
   }
 
   s.store.touchToken(record.id, now);
-  return { agent, owner, tokenId: record.id };
+  return { agent, owner, tokenId: record.id, jkt: record.jkt };
 }
 
 const STATUS_LABEL: Record<string, string> = { pending: "pendiente de aprobación", suspended: "suspendido", rejected: "rechazado", active: "activo" };

@@ -112,6 +112,19 @@ Si la decisión llega dentro de `approvals.waitSeconds`, la llamada se completa 
 
 Al marcar a la persona como inactiva (en producción, por un evento SCIM del proveedor de identidad), en una sola transacción: sus agentes quedan suspendidos, los tokens de sus agentes y de su consola se revocan y queda el registro en la bitácora.
 
+## Agentes de terceros
+
+El mismo modelo de responsabilidad se extiende a agentes de otras organizaciones: un empleado los **patrocina** y queda como su responsable interno. Como la empresa no controla ni el equipo ni el proceso del tercero, los controles se endurecen:
+
+- Aprobación solo de Seguridad, nivel máximo y techo de clasificación propios (`thirdParty`), recertificación más frecuente.
+- **Token ligado a la clave del agente (DPoP, RFC 9449).** El tercero genera un par de claves y entrega solo la pública; el token guarda su huella (RFC 7638). En cada request el agente firma una prueba con el método, la URL, la hora y el hash del token. El gateway verifica la firma, la huella, la antigüedad y que la prueba no se haya usado antes. Un token filtrado, o entregado de mano en mano, no sirve sin la clave privada.
+
+## Pasaporte del agente
+
+El gateway emite un JWT firmado con ES256 que describe al agente, su organización, su responsable y su autorización (con `cnf.jkt` si el token está ligado a una clave). Los conectores lo reciben en cada llamada y pueden tomar decisiones propias o registrar quién actuó. Lo verifican sin contactar al gateway, con la clave pública en `/.well-known/jwks.json`.
+
+Es deliberadamente de vida corta: la revocación se aplica en el gateway en cada request, y el pasaporte solo informa. Esta es la alternativa sin blockchain a "una llave por agente": identidad criptográfica verificable, revocable al instante y sin datos personales en un registro público.
+
 ## Clasificación de datos y proveedores de modelo
 
 Todo lo que el gateway entrega a un agente llega al proveedor de modelo que eligió el empleado. Por eso la autorización de un agente tiene dos techos:
@@ -128,7 +141,8 @@ Los conectores se clasifican como `public`, `internal`, `confidential` o `restri
 | Agente manipulado por inyección de prompts | Mínimo privilegio, aprobación humana para lo consecuente, instrucciones de operación, cortacircuitos | Detección de patrones de exfiltración |
 | Exfiltración de datos al proveedor de modelo | Techo de clasificación por proveedor, DLP por autorización | Gateway de modelos corporativo |
 | Agente sondeando permisos | Herramientas ocultas, bloqueos auditados, suspensión automática | Alertas en tiempo real |
-| Robo del token del agente | Hash en reposo, vencimiento, rotación, suspensión inmediata | DPoP, lista de IP permitidas |
+| Robo del token del agente | Hash en reposo, vencimiento, rotación, suspensión inmediata; DPoP obligatorio para terceros | DPoP para clientes MCP de empleados, lista de IP permitidas |
+| Tercero que pasa el token a otro agente | Token ligado a la clave del tercero; pasaporte con `cnf.jkt` | Atestación del entorno de ejecución |
 | Responsable que deja la empresa | Desvinculación suspende y revoca | SCIM automático |
 | Abuso del propio responsable | Nadie aprueba su propio agente; pagos con jefatura; bitácora | Revisión periódica por seguridad |
 | Alteración de la bitácora | Cadena de hashes verificable | Anclaje externo del último hash |

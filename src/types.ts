@@ -45,8 +45,22 @@ export interface Person {
 
 export type AgentStatus = "pending" | "active" | "suspended" | "rejected";
 
-/** Ficha que el empleado declara al inscribir su agente. */
+/**
+ * Origen del agente:
+ * - employee: el agente personal de un empleado (BYOA).
+ * - third_party: el agente de otra organización (proveedor, consultora, cliente) que trabaja
+ *   para la empresa. Su responsable es el empleado que lo patrocina.
+ */
+export const AGENT_ORIGINS = ["employee", "third_party"] as const;
+export type AgentOrigin = (typeof AGENT_ORIGINS)[number];
+
+/** Ficha que el responsable declara al inscribir el agente. */
 export interface AgentManifest {
+  origin: AgentOrigin;
+  /** Organización dueña del agente cuando es de un tercero. */
+  organization: string | null;
+  /** Contacto técnico del tercero. */
+  contactEmail: string | null;
   purpose: string;
   /** Runtime del agente: claude-code, cursor, custom, etc. */
   runtime: string;
@@ -84,6 +98,8 @@ export interface TokenRecord {
   kind: TokenKind;
   subjectId: string;
   prefix: string;
+  /** Huella (RFC 7638) de la clave pública a la que está ligado el token (DPoP). */
+  jkt: string | null;
   createdAt: string;
   expiresAt: string | null;
   revokedAt: string | null;

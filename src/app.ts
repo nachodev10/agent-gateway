@@ -6,17 +6,18 @@ import express, { type NextFunction, type Request, type Response, Router } from 
 import { z } from "zod";
 import { consoleApi } from "./api.js";
 import { AuditLog } from "./audit.js";
-import { authenticateAgent } from "./auth.js";
+import { type AgentRequest, authenticateAgent, publicBaseUrl } from "./auth.js";
 import type { GatewayConfig } from "./config.js";
 import { ConnectorHub } from "./connectors.js";
 import { Dlp } from "./dlp.js";
+import { DpopVerifier } from "./dpop.js";
 import { type AgentContext, type CallOutcome, Governance } from "./governance.js";
 import { type Logger, VERSION, createLogger, errorMessage } from "./log.js";
 import { createAgentMcpServer } from "./mcp.js";
+import { PassportIssuer } from "./passport.js";
 import { PolicyEngine } from "./policy.js";
 import { HttpError, type Services } from "./services.js";
 import { Store } from "./store.js";
-import { bearerToken } from "./tokens.js";
 
 export interface GatewayOptions {
   config: GatewayConfig;
@@ -27,6 +28,8 @@ export interface GatewayOptions {
   connect?: boolean;
   logger?: Logger;
   clock?: () => Date;
+  /** Clave privada (JWK) para firmar pasaportes; si falta, se genera y se guarda en la base. */
+  signingJwk?: string;
 }
 
 export interface RunningServer {
@@ -53,8 +56,17 @@ export async function createGateway(options: GatewayOptions): Promise<Gateway> {
   const policy = new PolicyEngine(config);
   const dlp = new Dlp(config.dlp);
   const hub = new ConnectorHub(config, log);
-  const governance = new Governance({ config, store, audit, policy, dlp, hub, log, clock });
-  const services: Services = { config, store, audit, policy, dlp, hub, governance, log, clock, adminToken: options.adminToken };
+  const passport = new PassportIssuer(config, store, clock(), options.signingJwk);
+  const dpop = new DpopVerifier();
+  const governance = new Governance({ config, store, audit, policy, dlp, hub, passport, log, clock });
+  const services: Services = { config, store, audit, policy, dlp, hub, governance, passport, dpop, log, clock, adminToken: options.adminToken };
+
+  const agentRequest = (req: Request): AgentRequest => ({
+    authorization: req.headers.authorization,
+    dpop: typeof req.headers.dpop === "string" ? req.headers.dpop : undefined,
+    method: req.method,
+    url: `${publicBaseUrl(services, req.protocol, req.get("host"))}${req.originalUrl}`,
+  });
 
   if (options.connect !== false) await hub.connectAll();
 
@@ -80,7 +92,7 @@ export async function createGateway(options: GatewayOptions): Promise<Gateway> {
   app.post("/mcp", async (req, res) => {
     let ctx: AgentContext;
     try {
-      ctx = authenticateAgent(services, bearerToken(req.headers.authorization));
+      ctx = authenticateAgent(services, agentRequest(req));
     } catch (error) {
       if (!(error instanceof HttpError)) throw error;
       res.status(error.status).json({ jsonrpc: "2.0", error: { code: -32001, message: error.message, data: { code: error.code } }, id: null });
@@ -106,7 +118,7 @@ export async function createGateway(options: GatewayOptions): Promise<Gateway> {
   // ── Agentes: REST (para runtimes sin MCP) ─────────────────
   const v1 = Router();
   v1.use((req, res, next) => {
-    res.locals.agent = authenticateAgent(services, bearerToken(req.headers.authorization));
+    res.locals.agent = authenticateAgent(services, agentRequest(req));
     next();
   });
   v1.get("/tools", (_req, res) => {
@@ -126,7 +138,22 @@ export async function createGateway(options: GatewayOptions): Promise<Gateway> {
     const outcome = await governance.callTool(ctx, String(req.params.name), req.body?.arguments ?? {}, "rest");
     res.status(HTTP_STATUS[outcome.status]).json(outcome);
   });
+  // El agente obtiene su pasaporte para presentarlo ante otros sistemas.
+  v1.get("/passport", (_req, res) => {
+    const ctx = res.locals.agent as AgentContext;
+    res.json({ passport: passport.issue(ctx.agent, ctx.owner, clock(), ctx.jkt), jwks: "/.well-known/jwks.json" });
+  });
   app.use("/v1", v1);
+
+  // ── Pasaportes: verificación pública ──────────────────────
+  app.get("/.well-known/jwks.json", (_req, res) => {
+    res.json(passport.jwks());
+  });
+  app.post("/passports/verify", (req, res) => {
+    const token = typeof req.body?.passport === "string" ? req.body.passport : "";
+    const result = passport.verify(token, clock());
+    res.status(result.ok ? 200 : 400).json(result);
+  });
 
   // ── Consola ───────────────────────────────────────────────
   app.use("/api", consoleApi(services));

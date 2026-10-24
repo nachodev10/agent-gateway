@@ -1,10 +1,11 @@
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
-import { type Actor, actorLabel, authenticateConsole, isAdmin, isSecurity, personIdOf } from "./auth.js";
+import { type Actor, actorLabel, authenticateConsole, isAdmin, isSecurity, personIdOf, publicBaseUrl } from "./auth.js";
 import { getTier } from "./config.js";
+import { type Jwk, importPublicJwk, jwkThumbprint } from "./jose.js";
 import { HttpError, type Services } from "./services.js";
 import { bearerToken, generateToken, hashToken, tokenPrefix } from "./tokens.js";
-import { type Agent, type ApprovalRequest, type Person, minClassification } from "./types.js";
+import { AGENT_ORIGINS, type Agent, type ApprovalRequest, type Person, minClassification } from "./types.js";
 import { addDays, addMinutes } from "./util.js";
 
 /**
@@ -12,6 +13,7 @@ import { addDays, addMinutes } from "./util.js";
  *
  * Reglas de responsabilidad que aplica:
  * - Solo el propio empleado inscribe su agente y acepta el acuerdo de uso responsable.
+ * - Un agente de un tercero lo inscribe el empleado que lo patrocina, y queda como su responsable.
  * - Nadie aprueba su propio agente; lo hace su jefatura o seguridad.
  * - Solo el responsable recibe el token de su agente.
  * - Desvincular a una persona suspende sus agentes y revoca sus tokens.
@@ -34,6 +36,9 @@ const personPatch = z.strictObject({
 });
 
 const agentBody = z.strictObject({
+  origin: z.enum(AGENT_ORIGINS).default("employee"),
+  organization: z.string().min(2).max(120).nullish(),
+  contactEmail: z.email().nullish(),
   name: z.string().min(2).max(80),
   purpose: z.string().min(5).max(500),
   runtime: z.string().min(1).max(60),
@@ -51,7 +56,11 @@ const approveBody = z.strictObject({
 
 const reasonBody = z.strictObject({ reason: z.string().min(3).max(500) });
 const noteBody = z.strictObject({ note: z.string().max(500).optional() });
-const tokenBody = z.strictObject({ ttlDays: z.number().int().positive().optional() });
+const tokenBody = z.strictObject({
+  ttlDays: z.number().int().positive().optional(),
+  /** Clave pública EC P-256 del agente (JWK). Si viene, el token queda ligado a ella (DPoP). */
+  publicJwk: z.record(z.string(), z.unknown()).optional(),
+});
 const decideBody = z.strictObject({ decision: z.enum(["approve", "deny"]), note: z.string().max(500).optional() });
 
 function slug(text: string): string {
@@ -148,7 +157,10 @@ export function consoleApi(s: Services): Router {
     };
   };
 
-  const mcpUrl = (req: Request) => `${s.config.server.publicUrl ?? `${req.protocol}://${req.get("host")}`}/mcp`;
+  const mcpUrl = (req: Request) => `${publicBaseUrl(s, req.protocol, req.get("host"))}/mcp`;
+  /** Los agentes de terceros se recertifican con más frecuencia. */
+  const reviewDays = (agent: Agent) =>
+    agent.manifest.origin === "third_party" ? s.config.thirdParty.reviewEveryDays : s.config.lifecycle.reviewEveryDays;
 
   // ── Identidad y metadatos ─────────────────────────────────
 
@@ -167,6 +179,7 @@ export function consoleApi(s: Services): Router {
       organization: s.config.organization.name,
       timezone: s.config.organization.timezone,
       agreement: s.config.agreement,
+      thirdParty: s.config.thirdParty,
       mcpUrl: mcpUrl(req),
       tiers: s.config.tiers,
       modelProviders: Object.entries(s.config.modelProviders).map(([id, maxClassification]) => ({ id, maxClassification })),
@@ -248,6 +261,9 @@ export function consoleApi(s: Services): Router {
     const actor = actorOf(res);
     const owner = requirePerson(actor);
     const body = agentBody.parse(req.body);
+    const thirdParty = body.origin === "third_party";
+    if (thirdParty && !s.config.thirdParty.enabled) throw new HttpError(403, "La empresa no admite agentes de terceros", "forbidden");
+    if (thirdParty && !body.organization) throw new HttpError(400, "Indica la organización dueña del agente", "validation");
     if (!(body.modelProvider in s.config.modelProviders)) {
       throw new HttpError(400, `Proveedor de modelo no reconocido. Opciones: ${Object.keys(s.config.modelProviders).join(", ")}`, "validation");
     }
@@ -260,6 +276,9 @@ export function consoleApi(s: Services): Router {
         ownerId: owner.id,
         agreementVersion: s.config.agreement.version,
         manifest: {
+          origin: body.origin,
+          organization: thirdParty ? (body.organization ?? null) : null,
+          contactEmail: thirdParty ? (body.contactEmail ?? null) : null,
           purpose: body.purpose,
           runtime: body.runtime,
           modelProvider: body.modelProvider,
@@ -299,17 +318,24 @@ export function consoleApi(s: Services): Router {
       throw new HttpError(409, `No se puede aprobar un agente ${agent.status}; usa reactivar`, "conflict");
     }
     if (personIdOf(actor) === agent.ownerId) throw new HttpError(403, "No puedes aprobar tu propio agente", "forbidden");
-    const allowed = tier.approvedBy === "security" ? isSecurity(actor) : isSecurity(actor) || isManagerOf(actor, owner);
+    const thirdParty = agent.manifest.origin === "third_party";
+    if (thirdParty && tier.level > s.config.thirdParty.maxTier) {
+      throw new HttpError(400, `Un agente de terceros puede llegar como máximo al nivel ${s.config.thirdParty.maxTier}`, "validation");
+    }
+    const approver = thirdParty && s.config.thirdParty.approvedBy === "security" ? "security" : tier.approvedBy;
+    const allowed = approver === "security" ? isSecurity(actor) : isSecurity(actor) || isManagerOf(actor, owner);
     if (!allowed) {
-      const who = tier.approvedBy === "security" ? "seguridad" : "la jefatura del responsable o seguridad";
-      throw new HttpError(403, `El nivel ${tier.level} (${tier.name}) solo lo aprueba ${who}`, "forbidden");
+      const who = approver === "security" ? "seguridad" : "la jefatura del responsable o seguridad";
+      const what = thirdParty ? "Un agente de terceros" : `El nivel ${tier.level} (${tier.name})`;
+      throw new HttpError(403, `${what} solo lo aprueba ${who}`, "forbidden");
     }
     const connectors = [...new Set(body.connectors ?? agent.manifest.requestedConnectors)];
     const unknown = connectors.filter((id) => !s.config.connectors.some((c) => c.id === id));
     if (unknown.length) throw new HttpError(400, `Conectores inexistentes: ${unknown.join(", ")}`, "validation");
 
     const providerCap = s.config.modelProviders[agent.manifest.modelProvider] ?? "public";
-    const clearance = minClassification(tier.clearance, providerCap);
+    let clearance = minClassification(tier.clearance, providerCap);
+    if (thirdParty) clearance = minClassification(clearance, s.config.thirdParty.maxClassification);
     const t = now();
     const updated = s.store.updateAgent(
       agent.id,
@@ -321,7 +347,7 @@ export function consoleApi(s: Services): Router {
         connectors,
         approvedBy: personIdOf(actor) ?? "admin",
         approvedAt: t.toISOString(),
-        reviewDueAt: addDays(t, s.config.lifecycle.reviewEveryDays).toISOString(),
+        reviewDueAt: addDays(t, reviewDays(agent)).toISOString(),
       },
       t,
     );
@@ -354,27 +380,42 @@ export function consoleApi(s: Services): Router {
   r.post("/agents/:id/tokens", (req, res) => {
     const actor = actorOf(res);
     const { agent, owner } = findAgent(param(req, "id"));
-    const { ttlDays } = tokenBody.parse(req.body ?? {});
+    const { ttlDays, publicJwk } = tokenBody.parse(req.body ?? {});
     if (personIdOf(actor) !== agent.ownerId) throw new HttpError(403, "Solo el responsable del agente recibe su token", "forbidden");
     if (agent.status !== "active") throw new HttpError(409, "El agente debe estar activo para emitir un token", "conflict");
 
+    const thirdParty = agent.manifest.origin === "third_party";
+    let jkt: string | null = null;
+    if (publicJwk) {
+      if (!importPublicJwk(publicJwk)) throw new HttpError(400, "publicJwk debe ser una clave pública EC P-256 (sin parte privada)", "validation");
+      jkt = jwkThumbprint(publicJwk as Jwk);
+    } else if (thirdParty && s.config.thirdParty.requireDpop) {
+      throw new HttpError(400, "Los agentes de terceros requieren un token ligado a su clave: envía publicJwk", "validation");
+    }
+
     const t = now();
-    const days = Math.min(ttlDays ?? s.config.lifecycle.tokenTtlDays, s.config.lifecycle.tokenTtlDays);
+    const maxDays = thirdParty ? s.config.thirdParty.tokenTtlDays : s.config.lifecycle.tokenTtlDays;
+    const days = Math.min(ttlDays ?? maxDays, maxDays);
     const token = generateToken("agent");
     const expiresAt = addDays(t, days);
     s.store.transaction(() => {
       // Rotación: el token anterior deja de servir al emitir uno nuevo.
       s.store.revokeTokens("agent", agent.id, t);
-      s.store.createToken("agent", agent.id, hashToken(token), tokenPrefix(token), expiresAt, t);
+      s.store.createToken("agent", agent.id, hashToken(token), tokenPrefix(token), expiresAt, t, jkt);
     });
-    s.audit.append({ type: "agent.token_issued", actor: actorLabel(actor), agentId: agent.id, ownerId: owner.id, detail: { token: tokenPrefix(token), expiresAt } }, t);
+    s.audit.append(
+      { type: "agent.token_issued", actor: actorLabel(actor), agentId: agent.id, ownerId: owner.id, detail: { token: tokenPrefix(token), expiresAt, jkt } },
+      t,
+    );
 
     const url = mcpUrl(req);
     res.status(201).json({
       token,
       expiresAt: expiresAt.toISOString(),
       mcpUrl: url,
-      claudeCode: `claude mcp add --transport http ${slug(s.config.organization.name)} ${url} --header "Authorization: Bearer ${token}"`,
+      binding: jkt ? { type: "dpop", jkt } : null,
+      // Claude Code y otros clientes MCP envían el token como encabezado fijo; con DPoP se usa un cliente que firme cada request.
+      claudeCode: jkt ? null : `claude mcp add --transport http ${slug(s.config.organization.name)} ${url} --header "Authorization: Bearer ${token}"`,
     });
   });
 
@@ -410,9 +451,19 @@ export function consoleApi(s: Services): Router {
     if (personIdOf(actor) !== agent.ownerId) throw new HttpError(403, "Solo el responsable recertifica su agente", "forbidden");
     if (agent.status !== "active") throw new HttpError(409, "Solo se recertifican agentes activos", "conflict");
     const t = now();
-    const updated = s.store.updateAgent(agent.id, { reviewDueAt: addDays(t, s.config.lifecycle.reviewEveryDays).toISOString() }, t);
+    const updated = s.store.updateAgent(agent.id, { reviewDueAt: addDays(t, reviewDays(agent)).toISOString() }, t);
     s.audit.append({ type: "agent.recertified", actor: actorLabel(actor), agentId: agent.id, ownerId: owner.id, detail: { reviewDueAt: updated.reviewDueAt } }, t);
     res.json({ agent: agentView(updated) });
+  });
+
+  r.get("/agents/:id/passport", (req, res) => {
+    const actor = actorOf(res);
+    const { agent, owner } = findAgent(param(req, "id"));
+    if (!canView(actor, agent, owner)) throw new HttpError(404, "Agente no encontrado", "not_found");
+    if (agent.status !== "active") throw new HttpError(409, "Solo los agentes activos tienen pasaporte", "conflict");
+    const jkt = s.store.listTokens("agent", agent.id).find((tk) => !tk.revokedAt)?.jkt ?? null;
+    const passport = s.passport.issue(agent, owner, now(), jkt);
+    res.json({ passport, claims: s.passport.verify(passport, now()) });
   });
 
   // ── Aprobaciones humanas ──────────────────────────────────

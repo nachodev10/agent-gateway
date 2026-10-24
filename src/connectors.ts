@@ -134,11 +134,13 @@ export class ConnectorHub {
     return this.catalog.get(exposedName);
   }
 
-  async call(tool: CatalogTool, args: Record<string, unknown>): Promise<CallToolResult> {
+  async call(tool: CatalogTool, args: Record<string, unknown>, meta?: Record<string, unknown>): Promise<CallToolResult> {
     const client = this.clients.get(tool.connectorId);
     if (!client) throw new Error(`El conector ${tool.connectorId} no está disponible`);
     const cfg = this.requireConfig(tool.connectorId);
-    const result = await client.callTool({ name: tool.toolName, arguments: args }, undefined, { timeout: cfg.timeoutSeconds * 1000 });
+    const result = await client.callTool({ name: tool.toolName, arguments: args, ...(meta ? { _meta: meta } : {}) }, undefined, {
+      timeout: cfg.timeoutSeconds * 1000,
+    });
     return result as CallToolResult;
   }
 

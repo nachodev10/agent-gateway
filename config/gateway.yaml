@@ -44,6 +44,25 @@ circuitBreaker:
 audit:
   stdout: false # true: emite cada evento como JSON por línea (para un SIEM)
 
+# Agentes de terceros (proveedores, consultoras, clientes) que trabajan para la empresa.
+# Los inscribe un empleado que los patrocina y responde por ellos.
+thirdParty:
+  enabled: true
+  maxTier: 1 # nunca pasan de Asistente
+  maxClassification: internal # techo de datos, sin importar su nivel ni su proveedor de modelo
+  requireDpop: true # su token queda ligado a su clave: copiarlo no sirve
+  tokenTtlDays: 7
+  reviewEveryDays: 30
+  approvedBy: security
+
+# Pruebas DPoP: antigüedad máxima de cada prueba firmada.
+dpop:
+  maxAgeSeconds: 120
+
+# Pasaporte del agente: credencial firmada que reciben los conectores en cada llamada.
+passport:
+  ttlMinutes: 15
+
 # Techo de clasificación según dónde procesa los datos el modelo del agente.
 # Todo lo que el gateway entrega llega al proveedor de modelo del empleado.
 # Ajusta estas categorías a tus contratos reales.
@@ -152,6 +171,11 @@ rules:
     description: Solo agentes de personas de Finanzas o Comercial usan el conector de finanzas.
     when: { connectors: [finanzas] }
     unless: { departments: [finanzas, comercial] }
+    effect: deny
+
+  - id: terceros-sin-correos
+    description: Los agentes de terceros no envían correos a nombre de la empresa.
+    when: { origins: [third_party], connectors: [crm], tools: [enviar_correo] }
     effect: deny
 
   - id: escrituras-fuera-de-horario

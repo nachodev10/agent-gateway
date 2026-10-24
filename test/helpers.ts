@@ -5,6 +5,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createCrmServer, createFinanzasServer } from "../examples/demo-servers.js";
 import { type Gateway, createGateway } from "../src/app.js";
 import { type GatewayConfig, loadConfig } from "../src/config.js";
+import { type DpopKey, dpopFetch } from "../src/dpop.js";
 import { createLogger } from "../src/log.js";
 import { Store } from "../src/store.js";
 import type { Agent, Person } from "../src/types.js";
@@ -36,7 +37,7 @@ export interface ApiResponse {
   body: any;
 }
 
-export async function startGateway(options: { config?: GatewayConfig; now?: Date } = {}) {
+export async function startGateway(options: { config?: GatewayConfig; now?: Date; servers?: { crm?: McpServer; finanzas?: McpServer } } = {}) {
   let current = options.now ?? WEEKDAY_NOON;
   const gateway = await createGateway({
     config: options.config ?? testConfig(),
@@ -46,8 +47,8 @@ export async function startGateway(options: { config?: GatewayConfig; now?: Date
     logger: createLogger({ silent: true }),
     clock: () => current,
   });
-  await attachInMemory(gateway, "crm", createCrmServer());
-  await attachInMemory(gateway, "finanzas", createFinanzasServer());
+  await attachInMemory(gateway, "crm", options.servers?.crm ?? createCrmServer());
+  await attachInMemory(gateway, "finanzas", options.servers?.finanzas ?? createFinanzasServer());
   const server = await gateway.listen(0, "127.0.0.1");
 
   const api = async (method: string, path: string, token: string, body?: unknown): Promise<ApiResponse> => {
@@ -59,9 +60,12 @@ export async function startGateway(options: { config?: GatewayConfig; now?: Date
     return { status: res.status, body: await res.json() };
   };
 
-  const mcp = async (token: string) => {
+  const mcp = async (token: string, dpopKey?: DpopKey) => {
     const client = new Client({ name: "agente-del-empleado", version: "1.0.0" });
-    await client.connect(new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${token}` } } }));
+    const transport = dpopKey
+      ? new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`), { fetch: dpopFetch(token, dpopKey) })
+      : new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${token}` } } });
+    await client.connect(transport);
     return client;
   };
 

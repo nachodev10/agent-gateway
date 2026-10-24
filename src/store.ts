@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS tokens (
   subject_id TEXT NOT NULL,
   hash TEXT NOT NULL UNIQUE,
   prefix TEXT NOT NULL,
+  jkt TEXT,
   created_at TEXT NOT NULL,
   expires_at TEXT,
   revoked_at TEXT,
@@ -95,6 +96,11 @@ CREATE TABLE IF NOT EXISTS audit_events (
   prev_hash TEXT NOT NULL,
   hash TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS signing_keys (
+  kid TEXT PRIMARY KEY,
+  private_jwk TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_tokens_subject ON tokens(kind, subject_id);
 CREATE INDEX IF NOT EXISTS idx_approvals_call ON approvals(agent_id, tool, args_hash, status);
 CREATE INDEX IF NOT EXISTS idx_audit_agent_ts ON audit_events(agent_id, ts);
@@ -128,7 +134,8 @@ function toAgent(r: Row): Agent {
     tier: r.tier === null || r.tier === undefined ? null : Number(r.tier),
     clearance: str(r.clearance) as Classification | null,
     connectors: JSON.parse(String(r.connectors)) as string[],
-    manifest: JSON.parse(String(r.manifest)) as AgentManifest,
+    // Las fichas anteriores a los agentes de terceros no traen origen: son de empleados.
+    manifest: { origin: "employee", organization: null, contactEmail: null, ...(JSON.parse(String(r.manifest)) as Partial<AgentManifest>) } as AgentManifest,
     agreementVersion: String(r.agreement_version),
     agreementAcceptedAt: String(r.agreement_accepted_at),
     approvedBy: str(r.approved_by),
@@ -146,6 +153,7 @@ function toToken(r: Row): TokenRecord {
     kind: r.kind as TokenKind,
     subjectId: String(r.subject_id),
     prefix: String(r.prefix),
+    jkt: str(r.jkt),
     createdAt: String(r.created_at),
     expiresAt: str(r.expires_at),
     revokedAt: str(r.revoked_at),
@@ -221,6 +229,13 @@ export class Store {
     this.db = new DatabaseSync(path);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
     this.db.exec(SCHEMA);
+    this.migrate();
+  }
+
+  /** Migraciones aditivas para bases creadas por versiones anteriores. */
+  private migrate(): void {
+    const columns = (this.db.prepare("PRAGMA table_info(tokens)").all() as Row[]).map((c) => String(c.name));
+    if (!columns.includes("jkt")) this.db.exec("ALTER TABLE tokens ADD COLUMN jkt TEXT");
   }
 
   close(): void {
@@ -337,11 +352,19 @@ export class Store {
 
   // ── Tokens ───────────────────────────────────────────────
 
-  createToken(kind: TokenKind, subjectId: string, hash: string, prefix: string, expiresAt: Date | null, now: Date): TokenRecord {
+  createToken(
+    kind: TokenKind,
+    subjectId: string,
+    hash: string,
+    prefix: string,
+    expiresAt: Date | null,
+    now: Date,
+    jkt: string | null = null,
+  ): TokenRecord {
     const id = newId("tok");
     this.db
-      .prepare("INSERT INTO tokens (id, kind, subject_id, hash, prefix, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .run(id, kind, subjectId, hash, prefix, now.toISOString(), expiresAt?.toISOString() ?? null);
+      .prepare("INSERT INTO tokens (id, kind, subject_id, hash, prefix, jkt, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(id, kind, subjectId, hash, prefix, jkt, now.toISOString(), expiresAt?.toISOString() ?? null);
     return toToken(this.db.prepare("SELECT * FROM tokens WHERE id = ?").get(id) as Row);
   }
 
@@ -363,6 +386,17 @@ export class Store {
 
   touchToken(id: string, now: Date): void {
     this.db.prepare("UPDATE tokens SET last_used_at = ? WHERE id = ?").run(now.toISOString(), id);
+  }
+
+  // ── Llaves de firma del gateway ──────────────────────────
+
+  getSigningKey(): { kid: string; privateJwk: string } | undefined {
+    const row = this.db.prepare("SELECT kid, private_jwk FROM signing_keys ORDER BY created_at DESC LIMIT 1").get() as Row | undefined;
+    return row ? { kid: String(row.kid), privateJwk: String(row.private_jwk) } : undefined;
+  }
+
+  saveSigningKey(kid: string, privateJwk: string, now: Date): void {
+    this.db.prepare("INSERT INTO signing_keys (kid, private_jwk, created_at) VALUES (?, ?, ?)").run(kid, privateJwk, now.toISOString());
   }
 
   // ── Aprobaciones ─────────────────────────────────────────

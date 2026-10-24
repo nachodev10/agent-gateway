@@ -211,7 +211,7 @@ function renderShell() {
       el(
         "div",
         { class: "grid-2" },
-        state.me.person ? el("section", { class: "card" }, el("h2", {}, "Inscribir mi agente"), el("div", { class: "card-body" }, enrollForm())) : null,
+        state.me.person ? el("section", { class: "card" }, el("h2", {}, "Inscribir un agente"), el("div", { class: "card-body" }, enrollForm())) : null,
         el("section", { class: "card" }, el("h2", {}, "Conectores"), el("div", { id: "connectors", class: "scroll-x" })),
       ),
     ),
@@ -408,7 +408,14 @@ function renderAgents() {
           return el(
             "tr",
             {},
-            el("td", {}, el("strong", {}, a.name), el("div", { class: "muted" }, `${a.manifest.runtime} · ${a.manifest.modelProvider}`), el("div", { class: "muted" }, a.manifest.purpose)),
+            el(
+              "td",
+              {},
+              el("strong", {}, a.name),
+              a.manifest.origin === "third_party" ? el("div", {}, badge(`Tercero · ${a.manifest.organization}`, "warn")) : null,
+              el("div", { class: "muted" }, `${a.manifest.runtime} · ${a.manifest.modelProvider}`),
+              el("div", { class: "muted" }, a.manifest.purpose),
+            ),
             el("td", {}, a.owner?.name || "—", el("div", { class: "muted" }, a.owner?.department || "")),
             el("td", {}, a.tier === null ? "—" : `${a.tier} · ${a.tierName}`),
             el("td", {}, a.clearance ? LABELS.classification[a.clearance] : "—", el("div", { class: "muted" }, a.connectors.join(", "))),
@@ -470,6 +477,9 @@ function enrollForm() {
         event.preventDefault();
         const data = new FormData(form);
         const body = {
+          origin: data.get("origin"),
+          organization: data.get("organization") || undefined,
+          contactEmail: data.get("contactEmail") || undefined,
           name: data.get("name"),
           purpose: data.get("purpose"),
           runtime: data.get("runtime"),
@@ -484,6 +494,26 @@ function enrollForm() {
         }, "Solicitud enviada a tu jefatura");
       },
     },
+    el(
+      "label",
+      {},
+      "Tipo",
+      el(
+        "select",
+        { name: "origin" },
+        el("option", { value: "employee" }, "Mi propio agente"),
+        state.meta.thirdParty?.enabled ? el("option", { value: "third_party" }, "Agente de un tercero que patrocino") : null,
+      ),
+    ),
+    state.meta.thirdParty?.enabled
+      ? el(
+          "fieldset",
+          {},
+          el("legend", {}, "Solo para agentes de terceros"),
+          el("label", {}, "Organización", el("input", { type: "text", name: "organization", placeholder: "Ej.: Acme Consultores" })),
+          el("label", {}, "Contacto técnico", el("input", { type: "text", name: "contactEmail", placeholder: "soporte@acme.cl" })),
+        )
+      : null,
     el("label", {}, "Nombre del agente", el("input", { type: "text", name: "name", required: true, placeholder: "Ej.: Asistente comercial" })),
     el("label", {}, "¿Para qué lo usarás?", el("textarea", { name: "purpose", rows: 2, required: true })),
     el("label", {}, "Runtime", el("select", { name: "runtime" }, RUNTIMES.map((r) => el("option", { value: r }, r)))),
@@ -545,7 +575,19 @@ function approveDialog(agent) {
 async function issueToken(agent) {
   if (agent.activeTokens.length && !confirm("Se revocará el token actual del agente. ¿Continuar?")) return;
   try {
-    const result = await api(`/agents/${agent.id}/tokens`, { method: "POST", body: {} });
+    const body = {};
+    const thirdParty = agent.manifest.origin === "third_party";
+    if (thirdParty && state.meta.thirdParty?.requireDpop) {
+      const jwk = prompt("Pega la clave pública del agente (JWK) que te entregó el tercero:");
+      if (!jwk) return;
+      try {
+        body.publicJwk = JSON.parse(jwk);
+      } catch {
+        toast("La clave pública no es un JSON válido", "error");
+        return;
+      }
+    }
+    const result = await api(`/agents/${agent.id}/tokens`, { method: "POST", body });
     const copy = (text) => navigator.clipboard?.writeText(text).then(() => toast("Copiado"), () => toast("No se pudo copiar", "error"));
     let dialog;
     dialog = openDialog(
@@ -555,13 +597,15 @@ async function issueToken(agent) {
         { class: "stack" },
         el("p", {}, "Se muestra una sola vez. Configúralo en tu agente; vence el ", fmtDate(result.expiresAt), "."),
         el("pre", {}, result.token),
-        el("p", { class: "muted" }, "Claude Code:"),
-        el("pre", {}, result.claudeCode),
+        result.binding
+          ? el("p", { class: "muted" }, "Token ligado a la clave del agente (DPoP): sin esa clave, el token no sirve. Entrégalo al tercero.")
+          : el("p", { class: "muted" }, "Claude Code:"),
+        result.claudeCode ? el("pre", {}, result.claudeCode) : null,
         el(
           "div",
           { class: "actions" },
           el("button", { onclick: () => copy(result.token) }, "Copiar token"),
-          el("button", { onclick: () => copy(result.claudeCode) }, "Copiar comando"),
+          result.claudeCode ? el("button", { onclick: () => copy(result.claudeCode) }, "Copiar comando") : null,
           el("button", { class: "primary", onclick: () => dialog.close() }, "Listo"),
         ),
       ),

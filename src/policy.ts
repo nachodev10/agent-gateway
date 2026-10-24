@@ -226,6 +226,8 @@ export class PolicyEngine {
     if (c.tiers && (agent.tier === null || !c.tiers.includes(agent.tier))) return false;
     if (c.departments && (!owner.department || !c.departments.includes(owner.department))) return false;
     if (c.agents && !c.agents.includes(agent.id)) return false;
+    if (c.origins && !c.origins.includes(agent.manifest.origin)) return false;
+    if (c.organizations && (!agent.manifest.organization || !c.organizations.includes(agent.manifest.organization))) return false;
     if (c.outsideBusinessHours !== undefined && this.isOutsideBusinessHours(now) !== c.outsideBusinessHours) return false;
     if (!ignoreArgs && c.args && !c.args.every((a) => argConditionHolds(a, args))) return false;
     return true;

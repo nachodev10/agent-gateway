@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
-import { APPROVERS, CLASSIFICATIONS, EFFECTS, TOOL_ACCESS } from "./types.js";
+import { AGENT_ORIGINS, APPROVERS, CLASSIFICATIONS, EFFECTS, TOOL_ACCESS } from "./types.js";
 
 /**
  * Configuración del gateway: conectores, niveles de confianza, DLP y reglas.
@@ -58,6 +58,10 @@ const condition = z.strictObject({
   tiers: z.array(z.number().int()).optional(),
   departments: z.array(z.string()).optional(),
   agents: z.array(z.string()).optional(),
+  /** Origen del agente: employee o third_party. */
+  origins: z.array(z.enum(AGENT_ORIGINS)).optional(),
+  /** Organización del tercero dueño del agente. */
+  organizations: z.array(z.string()).optional(),
   outsideBusinessHours: z.boolean().optional(),
   args: z.array(argCondition).optional(),
 });
@@ -160,6 +164,22 @@ export const configSchema = z
       })
       .prefault({}),
     audit: z.strictObject({ stdout: z.boolean().default(false) }).prefault({}),
+    /** Agentes de otras organizaciones, patrocinados por un empleado responsable. */
+    thirdParty: z
+      .strictObject({
+        enabled: z.boolean().default(true),
+        maxTier: z.number().int().min(0).default(1),
+        maxClassification: classification.default("internal"),
+        /** Exigir que el token quede ligado a la clave del agente (DPoP). */
+        requireDpop: z.boolean().default(true),
+        tokenTtlDays: z.number().int().positive().default(7),
+        reviewEveryDays: z.number().int().positive().default(30),
+        approvedBy: z.enum(["manager", "security"]).default("security"),
+      })
+      .prefault({}),
+    dpop: z.strictObject({ maxAgeSeconds: z.number().positive().max(600).default(120) }).prefault({}),
+    /** Pasaporte del agente: credencial firmada por el gateway que reciben los conectores. */
+    passport: z.strictObject({ ttlMinutes: z.number().positive().max(1440).default(15) }).prefault({}),
     /** Techo de clasificación según el proveedor de modelo declarado por el agente. */
     modelProviders: z.record(z.string(), classification),
     tiers: z.array(tier).min(1),

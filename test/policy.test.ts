@@ -26,7 +26,7 @@ const agent = (overrides: Partial<Agent> = {}): Agent => ({
   tier: 1,
   clearance: "confidential",
   connectors: ["crm", "finanzas"],
-  manifest: { purpose: "Seguimiento", runtime: "claude-code", modelProvider: "contrato-empresa", device: null, requestedConnectors: ["crm", "finanzas"] },
+  manifest: { origin: "employee", organization: null, contactEmail: null, purpose: "Seguimiento", runtime: "claude-code", modelProvider: "contrato-empresa", device: null, requestedConnectors: ["crm", "finanzas"] },
   agreementVersion: "2026-10",
   agreementAcceptedAt: WEEKDAY_NOON.toISOString(),
   approvedBy: "per_camila",

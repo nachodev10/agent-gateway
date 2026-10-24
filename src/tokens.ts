@@ -33,6 +33,14 @@ export function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ha, hb);
 }
 
+/** Lee `Authorization: Bearer <token>` o `Authorization: DPoP <token>`. */
+export function parseAuthorization(header: string | undefined): { scheme: "bearer" | "dpop"; token: string } | null {
+  if (!header) return null;
+  const match = /^(Bearer|DPoP)\s+(\S+)$/i.exec(header.trim());
+  if (!match) return null;
+  return { scheme: match[1]!.toLowerCase() === "dpop" ? "dpop" : "bearer", token: match[2]! };
+}
+
 export function bearerToken(header: string | undefined): string | null {
   if (!header) return null;
   const match = /^Bearer\s+(\S+)$/i.exec(header.trim());

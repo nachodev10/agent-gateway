@@ -10,6 +10,8 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { createGateway } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
+import { createDpopKey, dpopFetch } from "../src/dpop.js";
+import { decodeJwt } from "../src/jose.js";
 
 const ADMIN_TOKEN = process.env.AGW_ADMIN_TOKEN ?? "adm_demo";
 const DB = "data/demo.db";
@@ -70,7 +72,23 @@ await api("POST", "/api/agents", pedro.token, {
   acceptAgreement: true,
 });
 
-// 4. Primera sesión del agente de Ignacio, tal como la vería Claude Code.
+// 4. Camila patrocina el agente de una consultora externa; lo aprueba Seguridad y su token queda ligado a la clave del tercero.
+const { agent: acme } = await api("POST", "/api/agents", camila.token, {
+  origin: "third_party",
+  organization: "Acme Consultores",
+  contactEmail: "soporte@acme.example",
+  name: "Agente de soporte de Acme",
+  purpose: "Atender incidencias de clientes Pyme",
+  runtime: "custom",
+  modelProvider: "contrato-empresa",
+  requestedConnectors: ["crm", "finanzas"],
+  acceptAgreement: true,
+});
+await api("POST", `/api/agents/${acme.id}/approve`, sofia.token, { tier: 1, note: "Contrato de soporte vigente hasta marzo" });
+const acmeKey = createDpopKey(); // en la vida real la genera Acme y solo comparte la clave pública
+const acmeIssued = await api("POST", `/api/agents/${acme.id}/tokens`, camila.token, { publicJwk: acmeKey.publicJwk });
+
+// 5. Primera sesión del agente de Ignacio, tal como la vería Claude Code.
 const client = new Client({ name: "agente-de-ignacio", version: "1.0.0" });
 await client.connect(
   new StreamableHTTPClientTransport(new URL(`${server.url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${issued.token}` } } }),
@@ -91,6 +109,20 @@ await step("Acción prohibida por política", "crm_eliminar_cliente", { clienteI
 await step("Escritura: requiere aprobación del responsable", "crm_registrar_nota", { clienteId: "C-1001", nota: "Agendar reunión de renovación" });
 await step("Pago alto: lo aprueba la jefatura", "finanzas_emitir_pago", { proveedor: "Imprenta Sur", monto: 1_200_000, moneda: "CLP", glosa: "Catálogos 2027" });
 await client.close();
+
+console.log("\n=== Sesión simulada del agente de Acme Consultores (tercero, patrocinado por Camila) ===");
+const acmeFetch = dpopFetch(acmeIssued.token, acmeKey);
+const stolen = await fetch(`${server.url}/v1/tools`, { headers: { Authorization: `Bearer ${acmeIssued.token}` } });
+console.log(`\n→ Token copiado sin la clave de Acme: HTTP ${stolen.status}`);
+const acmeTools = (await (await acmeFetch(`${server.url}/v1/tools`)).json()) as { tools: { name: string }[] };
+console.log("\n→ Herramientas visibles con su clave (datos internos, sin correos ni finanzas):");
+for (const t of acmeTools.tools) console.log(`  - ${t.name}`);
+const { passport } = (await (await acmeFetch(`${server.url}/v1/passport`)).json()) as { passport: string };
+const claims = decodeJwt(passport)?.payload as { agent: { organization: string }; responsible: { name: string }; authorization: { tier: number; clearance: string } };
+console.log(
+  `\n→ Pasaporte firmado por el gateway: ${claims.agent.organization}, responsable ${claims.responsible.name}, ` +
+    `nivel ${claims.authorization.tier}, datos hasta ${claims.authorization.clearance}`,
+);
 
 console.log(`
 === Agent Gateway de ${config.organization.name} en marcha ===

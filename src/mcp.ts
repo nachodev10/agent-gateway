@@ -16,7 +16,10 @@ export function buildInstructions(ctx: AgentContext, config: GatewayConfig): str
   const clearance = ctx.agent.clearance ? CLASSIFICATION_LABEL[ctx.agent.clearance] : "públicos";
   return [
     `Estás conectado al Agent Gateway de ${config.organization.name}.`,
-    `Actúas en nombre de ${ctx.owner.name} <${ctx.owner.email}>, responsable de este agente ante la empresa.`,
+    ctx.agent.manifest.origin === "third_party"
+      ? `Eres un agente de ${ctx.agent.manifest.organization ?? "una organización externa"} trabajando para la empresa. ` +
+        `Tu responsable interno es ${ctx.owner.name} <${ctx.owner.email}>, quien responde por tus acciones.`
+      : `Actúas en nombre de ${ctx.owner.name} <${ctx.owner.email}>, responsable de este agente ante la empresa.`,
     `Nivel de confianza: ${tier ? `${tier.level} · ${tier.name}` : "sin asignar"}. Datos autorizados: hasta ${clearance}.`,
     "",
     "Reglas de operación:",

@@ -4,6 +4,7 @@ import { type GatewayConfig, getTier } from "./config.js";
 import type { CatalogTool, ConnectorHub } from "./connectors.js";
 import { type Dlp, totalRedactions } from "./dlp.js";
 import { type Logger, errorMessage } from "./log.js";
+import type { PassportIssuer } from "./passport.js";
 import type { Decision, PolicyEngine } from "./policy.js";
 import type { Store } from "./store.js";
 import type { Agent, ApprovalRequest, ApproverKind, Person } from "./types.js";
@@ -19,6 +20,8 @@ export interface AgentContext {
   agent: Agent;
   owner: Person;
   tokenId: string;
+  /** Huella de la clave del agente si su token está ligado a ella (DPoP). */
+  jkt: string | null;
 }
 
 export type CallOutcome =
@@ -48,6 +51,7 @@ interface Deps {
   policy: PolicyEngine;
   dlp: Dlp;
   hub: ConnectorHub;
+  passport: PassportIssuer;
   log: Logger;
   clock?: () => Date;
 }
@@ -145,7 +149,9 @@ export class Governance {
 
     let upstream: CallToolResult;
     try {
-      upstream = await hub.call(tool, args);
+      // El conector recibe el pasaporte firmado: sabe qué agente actúa y quién responde por él.
+      const passport = this.deps.passport.forConnector(ctx.agent, ctx.owner, this.clock());
+      upstream = await hub.call(tool, args, { "agent-gateway/passport": passport });
     } catch (error) {
       const reason = `Error del conector ${tool.connectorId}: ${errorMessage(error)}`;
       this.deps.log.warn(reason, { agent: ctx.agent.id, tool: name });
