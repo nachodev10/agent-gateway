@@ -1,0 +1,161 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Agent Gateway · configuración y políticas (políticas como código)
+#
+# Este archivo se versiona en git: cada cambio de política queda revisado y trazado.
+# Los secretos nunca van aquí; se referencian como ${VARIABLE} y se leen del entorno.
+# Las rutas son relativas al directorio desde donde se ejecuta el gateway.
+# ─────────────────────────────────────────────────────────────────────────────
+
+organization:
+  name: Empresa Demo SpA
+  timezone: America/Santiago
+  businessHours:
+    days: [1, 2, 3, 4, 5] # 0 = domingo
+    start: "08:00"
+    end: "19:00"
+
+server:
+  host: 127.0.0.1
+  port: 8080
+  # publicUrl: https://agentes.miempresa.cl
+
+storage:
+  path: data/agent-gateway.db
+
+# Acuerdo de uso responsable que cada empleado acepta al inscribir su agente.
+agreement:
+  version: "2026-10"
+  url: docs/politica-byoa.md
+
+lifecycle:
+  tokenTtlDays: 30 # los tokens de agente vencen y se rotan
+  reviewEveryDays: 90 # el responsable recertifica que el agente sigue siendo necesario
+
+approvals:
+  waitSeconds: 20 # el gateway espera la decisión humana antes de responder "pendiente"
+  pendingExpireMinutes: 1440
+  approvedValidMinutes: 60 # ventana para reintentar una acción aprobada
+
+# Cortacircuitos: un agente que acumula bloqueos se suspende solo.
+circuitBreaker:
+  maxDenials: 10
+  windowMinutes: 10
+
+audit:
+  stdout: false # true: emite cada evento como JSON por línea (para un SIEM)
+
+# Techo de clasificación según dónde procesa los datos el modelo del agente.
+# Todo lo que el gateway entrega llega al proveedor de modelo del empleado.
+# Ajusta estas categorías a tus contratos reales.
+modelProviders:
+  contrato-empresa: restricted # proveedor con contrato corporativo, sin retención ni entrenamiento con tus datos
+  local: confidential # modelo que corre en el equipo del empleado
+  personal: internal # suscripción personal del empleado
+  desconocido: public
+
+# Niveles de confianza. Los agentes entran en período de prueba y suben con buen historial.
+tiers:
+  - level: 0
+    name: Observador
+    description: Período de prueba. Solo lectura de datos internos.
+    clearance: internal
+    defaults: { read: allow, write: deny, destructive: deny }
+    limits: { perMinute: 20, perDay: 300 }
+  - level: 1
+    name: Asistente
+    description: Lee datos confidenciales; toda escritura pasa por aprobación humana.
+    clearance: confidential
+    defaults: { read: allow, write: require_approval, destructive: deny }
+    limits: { perMinute: 30, perDay: 1000 }
+  - level: 2
+    name: Colaborador
+    description: Escribe de forma autónoma; lo destructivo requiere aprobación.
+    clearance: confidential
+    defaults: { read: allow, write: allow, destructive: require_approval }
+    limits: { perMinute: 60, perDay: 3000 }
+  - level: 3
+    name: Autónomo
+    description: Amplia autonomía dentro de límites. Solo lo aprueba seguridad.
+    clearance: restricted
+    defaults: { read: allow, write: allow, destructive: require_approval }
+    limits: { perMinute: 120, perDay: 10000 }
+    approvedBy: security
+
+dlp:
+  enabled: true
+  # Autorización mínima del agente para ver cada dato sin redactar.
+  reveal:
+    secret: never
+    credit_card: restricted
+    rut: restricted
+    email: confidential
+    phone: confidential
+
+# Sistemas de la empresa expuestos a los agentes. Solo el gateway tiene sus credenciales.
+connectors:
+  - id: crm
+    name: CRM Comercial
+    description: Clientes, notas comerciales y correos.
+    classification: internal
+    transport: stdio
+    command: npx
+    args: [tsx, examples/demo-connector.ts, crm]
+
+  - id: finanzas
+    name: Finanzas
+    description: Facturas y pagos a proveedores.
+    classification: confidential
+    transport: stdio
+    command: npx
+    args: [tsx, examples/demo-connector.ts, finanzas]
+
+  # Conector remoto con una credencial que solo conoce el gateway:
+  # - id: docs
+  #   name: Documentos
+  #   classification: internal
+  #   transport: http
+  #   url: https://mcp.interno.miempresa.cl/mcp
+  #   headers:
+  #     Authorization: "Bearer ${DOCS_MCP_TOKEN}"
+  #   tools:
+  #     borrar_carpeta: { hidden: true }
+  #     publicar: { access: write }
+
+# Reglas de la empresa. Precedencia: deny > require_approval > allow > nivel del agente.
+rules:
+  - id: nunca-eliminar-clientes
+    description: Ningún agente elimina fichas de clientes; eso lo hace una persona.
+    when: { connectors: [crm], tools: ["eliminar_*"] }
+    effect: deny
+
+  - id: correos-externos-con-aprobacion
+    description: Un correo a destinatarios fuera de la empresa requiere aprobación del responsable.
+    when:
+      connectors: [crm]
+      tools: [enviar_correo]
+      args:
+        - { path: para, op: notMatches, value: "@empresa-demo\\.example$" }
+    effect: require_approval
+    approver: owner
+
+  - id: pagos-altos-con-jefatura
+    description: Pagos sobre $500.000 los aprueba la jefatura del responsable (cuatro ojos).
+    when:
+      connectors: [finanzas]
+      tools: [emitir_pago]
+      args:
+        - { path: monto, op: gt, value: 500000 }
+    effect: require_approval
+    approver: manager
+
+  - id: finanzas-solo-areas-autorizadas
+    description: Solo agentes de personas de Finanzas o Comercial usan el conector de finanzas.
+    when: { connectors: [finanzas] }
+    unless: { departments: [finanzas, comercial] }
+    effect: deny
+
+  - id: escrituras-fuera-de-horario
+    description: Fuera del horario laboral, toda escritura requiere aprobación del responsable.
+    when: { access: [write], outsideBusinessHours: true }
+    effect: require_approval
+    approver: owner
