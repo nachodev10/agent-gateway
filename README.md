@@ -299,7 +299,7 @@ Consola (token `agp_…` de una persona o token de administración):
 6. Detección de anomalías por agente: volumen, horario, herramientas nuevas.
 7. Gateway de modelos opcional para datos restringidos con un proveedor corporativo.
 
-Detalle de diseño en [docs/arquitectura.md](docs/arquitectura.md) y plantilla de política para tu equipo en [docs/politica-byoa.md](docs/politica-byoa.md).
+Detalle de diseño en [docs/arquitectura.md](docs/arquitectura.md) y plantilla de política para tu equipo en [docs/politica-byoa.md](docs/politica-byoa.md). Qué está construido, qué está a medias y qué falta, en [docs/estado.md](docs/estado.md). La página de venta está en [site/index.html](site/index.html).
 
 ## Estructura
 

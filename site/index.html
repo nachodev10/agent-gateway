@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+<title>Soul Gateway</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Los agentes de tu equipo, trabajando en tu empresa bajo tus reglas.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Syne:wght@800&display=swap">
+<style>
+/* Sistema Soul: un cielo a pantalla completa (mediodía de día, medianoche de noche) y, sobre él, tarjetas esmeriladas en una columna central. Sin color de acento: lo principal va en ink. */
+:root {
+  --sky-a: #3f83d6; --sky-b: #86b7ea; --sky-c: #dfeaf4;
+  --dusk-a: #3b4a92; --dusk-b: #a8719a; --dusk-c: #ec9670;
+  --ink: #1a1b1f; --ink-2: rgba(26, 27, 31, 0.67); --ink-3: rgba(26, 27, 31, 0.52); --ink-inv: #ffffff;
+  --card: rgba(255, 255, 255, 0.58); --card-2: rgba(255, 255, 255, 0.36); --sheet: rgba(250, 251, 254, 0.86);
+  --solid: #ffffff; --hair: rgba(26, 27, 31, 0.1); --track: rgba(26, 27, 31, 0.12); --bar: rgba(255, 255, 255, 0.76);
+  --on-sky: #1a1b1f; --on-sky-2: rgba(26, 27, 31, 0.7);
+  --ok: #116042; --warn: #7a4806; --bad: #982f27;
+  --glow: rgba(255, 246, 220, 0.75);
+  --shadow: 0 1px 1px rgba(20, 30, 60, 0.04), 0 14px 34px rgba(20, 30, 60, 0.09);
+  --lift: 0 1px 2px rgba(20, 30, 60, 0.1), 0 0 0 1px rgba(26, 27, 31, 0.06);
+  --font-ui: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --font-logo: "Syne", "Geist", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r-xl: 32px; --r-lg: 24px; --r-act: 28px; --r-sm: 16px; --r-md: 13px; --r-pill: 999px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sky-a: #070b1e; --sky-b: #141b3f; --sky-c: #27305c;
+    --ink: #eef0fb; --ink-2: rgba(238, 240, 251, 0.68); --ink-3: rgba(238, 240, 251, 0.5); --ink-inv: #12162c;
+    --card: rgba(18, 24, 54, 0.52); --card-2: rgba(18, 24, 54, 0.34); --sheet: rgba(17, 22, 48, 0.9);
+    --solid: rgba(255, 255, 255, 0.15); --hair: rgba(238, 240, 251, 0.13); --track: rgba(238, 240, 251, 0.17); --bar: rgba(20, 26, 58, 0.8);
+    --on-sky: #ffffff; --on-sky-2: rgba(255, 255, 255, 0.78);
+    --ok: #62d8a7; --warn: #f2b75f; --bad: #ff9085;
+    --glow: rgba(160, 175, 255, 0.16);
+    --shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+    --lift: 0 0 0 1px rgba(238, 240, 251, 0.1);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --sky-a: #070b1e; --sky-b: #141b3f; --sky-c: #27305c;
+  --ink: #eef0fb; --ink-2: rgba(238, 240, 251, 0.68); --ink-3: rgba(238, 240, 251, 0.5); --ink-inv: #12162c;
+  --card: rgba(18, 24, 54, 0.52); --card-2: rgba(18, 24, 54, 0.34); --sheet: rgba(17, 22, 48, 0.9);
+  --solid: rgba(255, 255, 255, 0.15); --hair: rgba(238, 240, 251, 0.13); --track: rgba(238, 240, 251, 0.17); --bar: rgba(20, 26, 58, 0.8);
+  --on-sky: #ffffff; --on-sky-2: rgba(255, 255, 255, 0.78);
+  --ok: #62d8a7; --warn: #f2b75f; --bad: #ff9085;
+  --glow: rgba(160, 175, 255, 0.16);
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+  --lift: 0 0 0 1px rgba(238, 240, 251, 0.1);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--sky-b);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 56px;
+  overflow-x: hidden;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--sky-a);
+}
+.sky {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60vmax 40vmax at 82% 8%, var(--glow), transparent 60%),
+    linear-gradient(180deg, var(--sky-a) 0%, var(--sky-b) 55%, var(--sky-c) 100%);
+}
+.stars { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .stars { opacity: 1; } }
+:root[data-theme="dark"] .stars { opacity: 1; }
+
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.wrap { max-width: 1040px; margin: 0 auto; }
+.col { max-width: 640px; }
+
+/* Superficies */
+.glass {
+  background: var(--card);
+  -webkit-backdrop-filter: blur(26px) saturate(1.25);
+  backdrop-filter: blur(26px) saturate(1.25);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow);
+}
+.soft { background: var(--card-2); border-radius: var(--r-sm); }
+
+/* Barra superior */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-block: 14px;
+}
+.brand {
+  display: inline-flex; align-items: baseline; gap: 6px; text-decoration: none;
+  background: var(--bar); -webkit-backdrop-filter: blur(26px); backdrop-filter: blur(26px);
+  padding: 10px 16px; border-radius: var(--r-pill); box-shadow: var(--shadow);
+}
+.wordmark { font-family: var(--font-logo); font-weight: 800; font-size: 19px; letter-spacing: -0.03em; line-height: 1; }
+.brand .surname { font-weight: 500; font-size: 15px; color: var(--ink-2); }
+.tabs {
+  display: flex; gap: 2px; padding: 4px; border-radius: var(--r-pill);
+  background: var(--bar); -webkit-backdrop-filter: blur(26px); backdrop-filter: blur(26px); box-shadow: var(--shadow);
+}
+.tabs a { text-decoration: none; padding: 7px 14px; border-radius: var(--r-pill); font-weight: 500; font-size: 14px; color: var(--ink-2); }
+.tabs a:hover { background: var(--track); color: var(--ink); }
+.tabs a.cta { background: var(--ink); color: var(--ink-inv); }
+.tabs a.cta:hover { background: var(--ink); color: var(--ink-inv); }
+@media (max-width: 720px) { .tabs a:not(.cta) { display: none; } }
+
+/* Botones */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 500 15px/1 var(--font-ui); letter-spacing: -0.011em;
+  padding: 14px 20px; border-radius: var(--r-md); border: 0; cursor: pointer; text-decoration: none;
+  transition: transform .15s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: scale(.97); }
+.btn.dark { background: var(--ink); color: var(--ink-inv); }
+.btn.light { background: var(--solid); color: var(--ink); box-shadow: var(--lift); }
+.btn svg { width: 16px; height: 16px; }
+
+/* Tipografía */
+.eyebrow { font-size: 12.5px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.greeting {
+  font-family: var(--font-serif); font-weight: 400; font-size: clamp(34px, 6.4vw, 60px); line-height: 1.04;
+  letter-spacing: -0.02em; color: var(--on-sky); margin: 0; text-wrap: balance;
+}
+.greeting em { font-style: italic; }
+.page-title {
+  font-family: var(--font-serif); font-weight: 400; font-size: clamp(28px, 4.2vw, 40px); line-height: 1.1;
+  letter-spacing: -0.015em; color: var(--on-sky); margin: 0; text-wrap: balance;
+}
+.page-title em { font-style: italic; }
+.lede { font-size: 17px; line-height: 1.5; color: var(--on-sky); margin: 0; max-width: 34em; }
+.conclusion { font-size: 16.5px; line-height: 1.35; margin: 0; text-wrap: pretty; }
+.caption { font-size: 12.5px; color: var(--ink-3); }
+.small { font-size: 13.5px; color: var(--ink-2); }
+.tab-nums { font-variant-numeric: tabular-nums; }
+p { margin: 0; }
+
+section { padding-block: 72px 0; scroll-margin-top: 80px; }
+.section-head { display: grid; gap: 10px; margin-bottom: 22px; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 40px; align-items: center; padding-block: 48px 0; }
+.hero-copy { display: grid; gap: 22px; min-width: 0; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.works-with { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--r-pill);
+  background: var(--card-2); -webkit-backdrop-filter: blur(20px) saturate(1.2); backdrop-filter: blur(20px) saturate(1.2);
+  font-size: 13.5px; font-weight: 500; color: var(--ink); box-shadow: 0 0 0 1px var(--hair) inset;
+}
+.chip.next { color: var(--ink-2); }
+.chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip.next .dot { background: transparent; box-shadow: 0 0 0 1.5px currentColor inset; }
+@media (max-width: 860px) { .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
+
+/* Demo: ficha, acción y bitácora */
+.demo { display: grid; gap: 12px; min-width: 0; }
+.passport { padding: 22px; display: grid; gap: 14px; }
+.passport-head { display: flex; align-items: center; gap: 12px; }
+.avatar {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--solid); box-shadow: var(--lift); font-weight: 600; font-size: 16px;
+}
+.passport-name { font-size: 17px; font-weight: 500; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 4px 10px; border-radius: var(--r-pill); box-shadow: 0 0 0 1px var(--hair) inset; white-space: nowrap; }
+.status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status.ok { color: var(--ok); }
+.status.warn { color: var(--warn); }
+.status.bad { color: var(--bad); }
+.passport-head .status { margin-left: auto; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0; font-size: 14.5px; }
+.kv dt { color: var(--ink-2); padding-block: 7px; padding-right: 16px; border-top: 1px solid var(--hair); }
+.kv dd { margin: 0; padding-block: 7px; border-top: 1px solid var(--hair); text-align: right; min-width: 0; }
+.kv dt:first-of-type, .kv dd:first-of-type { border-top: 0; }
+
+.act {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start;
+  padding: 18px 20px; border-radius: var(--r-act); text-align: left; width: 100%;
+  border: 0; cursor: pointer; color: var(--ink); font: inherit;
+  transition: transform .15s ease, opacity .35s ease;
+}
+.act:hover { transform: translateY(-1px); }
+.act:active { transform: scale(.985); }
+.verb {
+  background: var(--solid); box-shadow: var(--lift); border-radius: var(--r-md);
+  font-weight: 500; font-size: 16px; padding: 9px 14px; white-space: nowrap;
+}
+.act-text { display: grid; gap: 6px; padding-top: 4px; }
+.act-text .conclusion { font-size: 16.5px; }
+.act[aria-pressed="true"] { cursor: default; }
+.act[aria-pressed="true"] .verb { background: var(--ink); color: var(--ink-inv); box-shadow: none; }
+
+.log { padding: 16px 20px; display: grid; gap: 4px; }
+.log-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 4px; }
+.log ol { list-style: none; margin: 0; padding: 0; }
+.log li {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  padding-block: 7px; border-top: 1px solid var(--hair); font-size: 13.5px;
+}
+.log li:first-child { border-top: 0; }
+.log time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.log code { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); }
+.log li.new { animation: rise .45s ease both; }
+@keyframes rise { from { transform: translateY(8px); opacity: .2; } to { transform: none; opacity: 1; } }
+
+/* Comparación */
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.panel { padding: 26px; display: grid; gap: 14px; align-content: start; }
+.panel ul { margin: 0; padding: 0; list-style: none; display: grid; }
+.panel li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; padding-block: 10px; border-top: 1px solid var(--hair); font-size: 14.5px; }
+.panel li:first-child { border-top: 0; }
+.panel li svg { width: 18px; height: 18px; margin-top: 1px; }
+.panel.muted li svg { color: var(--ink-3); }
+@media (max-width: 720px) { .compare { grid-template-columns: minmax(0, 1fr); } }
+
+/* Capas */
+.layers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.layer { padding: 22px; display: grid; gap: 10px; align-content: start; }
+.layer .ico { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--solid); box-shadow: var(--lift); }
+.layer .ico svg { width: 18px; height: 18px; }
+.layer h3 { margin: 0; font-size: 17px; font-weight: 500; letter-spacing: -0.011em; }
+.layer p { font-size: 14.5px; color: var(--ink-2); }
+.layer .proof { font-size: 12.5px; color: var(--ink-3); padding-top: 4px; }
+.note { margin-top: 16px; padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; border-radius: var(--r-pill); }
+@media (max-width: 900px) { .layers { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 580px) { .layers { grid-template-columns: minmax(0, 1fr); } .note { border-radius: var(--r-lg); } }
+
+/* Pasos */
+.steps-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.steps { padding: 10px 24px; list-style: none; margin: 0; counter-reset: step; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; padding-block: 14px; border-top: 1px solid var(--hair); }
+.steps li:first-child { border-top: 0; }
+.steps li::before {
+  content: counter(step); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--ink); color: var(--ink-inv); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.steps strong { font-weight: 500; display: block; }
+.steps span { font-size: 14.5px; color: var(--ink-2); }
+.code-card { padding: 22px; display: grid; gap: 12px; min-width: 0; }
+.code {
+  margin: 0; padding: 16px 18px; border-radius: var(--r-sm); background: var(--card-2);
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--ink);
+  overflow-x: auto; white-space: pre; letter-spacing: 0;
+}
+.code .k { color: var(--ink-2); }
+.code .c { color: var(--ink-3); }
+@media (max-width: 860px) { .steps-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Terceros */
+.third { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.third .panel h3 { margin: 0; font-size: 17px; font-weight: 500; }
+@media (max-width: 860px) { .third { grid-template-columns: minmax(0, 1fr); } }
+
+/* Reglas por área */
+.rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.rule { padding: 22px; display: grid; gap: 12px; align-content: start; grid-template-rows: auto 1fr auto; }
+.rule .status { justify-self: start; }
+@media (max-width: 900px) { .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 580px) { .rules { grid-template-columns: minmax(0, 1fr); } }
+
+/* Planes */
+.plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 860px; }
+.plan { padding: 26px; display: grid; gap: 14px; align-content: start; }
+.plan-name { font-family: var(--font-logo); font-weight: 800; font-size: 24px; letter-spacing: -0.03em; line-height: 1; }
+.plan-name span { font-family: var(--font-ui); font-weight: 500; color: var(--ink-2); letter-spacing: -0.02em; }
+.plan ul { margin: 0; padding: 0; list-style: none; display: grid; }
+.plan li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; padding-block: 8px; border-top: 1px solid var(--hair); font-size: 14.5px; }
+.plan li:first-child { border-top: 0; }
+.plan li svg { width: 16px; height: 16px; margin-top: 2px; }
+.plan li.soon { color: var(--ink-2); }
+.plan .btn { margin-top: 4px; }
+.plan.featured { background: var(--sheet); }
+@media (max-width: 760px) { .plans { grid-template-columns: minmax(0, 1fr); max-width: 560px; } }
+
+/* Hoja de ruta y normas */
+.road { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.road .panel li { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+@media (max-width: 760px) { .road { grid-template-columns: minmax(0, 1fr); } }
+
+/* Contacto */
+.contact { padding: 28px; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 28px; }
+.contact form { display: grid; gap: 14px; }
+.field { display: grid; gap: 6px; }
+.field label, .field legend { font-size: 13.5px; font-weight: 500; color: var(--ink-2); padding: 0; }
+.field input, .field textarea {
+  font: 400 16px/1.38 var(--font-ui); letter-spacing: -0.011em; color: var(--ink);
+  background: var(--card-2); border: 0; box-shadow: 0 0 0 1px var(--hair) inset;
+  padding: 12px 16px; border-radius: var(--r-pill); width: 100%;
+}
+.field textarea { border-radius: var(--r-sm); resize: vertical; min-height: 84px; }
+.field input::placeholder, .field textarea::placeholder { color: var(--ink-3); }
+.field input:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: var(--r-pill); background: var(--track); width: fit-content; max-width: 100%; }
+.seg, .picks { position: relative; }
+.seg input, .picks input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.seg label { padding: 7px 14px; border-radius: var(--r-pill); font-size: 14px; font-weight: 500; color: var(--ink-2); cursor: pointer; }
+.seg input:checked + label { background: var(--ink); color: var(--ink-inv); }
+.seg input:focus-visible + label { outline: 2px solid var(--ink); outline-offset: 2px; }
+.picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.picks label { cursor: pointer; }
+.picks input:checked + label { background: var(--ink); color: var(--ink-inv); box-shadow: none; }
+.picks input:focus-visible + label { outline: 2px solid var(--ink); outline-offset: 2px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.error { color: var(--bad); font-size: 13.5px; }
+.done { display: grid; gap: 12px; }
+.done pre { margin: 0; white-space: pre-wrap; font: 400 14.5px/1.45 var(--font-ui); padding: 14px 16px; border-radius: var(--r-sm); background: var(--card-2); user-select: all; }
+.done .row { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 860px) { .contact { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) { .two { grid-template-columns: minmax(0, 1fr); } }
+
+footer { padding-block: 56px 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.5px; color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+
+<div class="sky" aria-hidden="true"><canvas class="stars" id="stars"></canvas></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16c.6-1.4 1.8-2.2 3.2-2.2s2.6.8 3.2 2.2M14.5 10h4M14.5 13.5h3"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="14" r="4"/><path d="M11 11l8-8M16 6l2.5 2.5M14 8l2 2"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4zM13.5 6.5l4 4"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6L12 3z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header class="top">
+  <a class="brand" href="#inicio" aria-label="Soul Gateway, inicio"><span class="wordmark">soul</span><span class="surname">gateway</span></a>
+  <nav class="tabs" aria-label="Secciones">
+    <a href="#capas">Cómo protege</a>
+    <a href="#terceros">Terceros</a>
+    <a href="#planes">Planes</a>
+    <a class="cta" href="#demo">Pedir una demo</a>
+  </nav>
+</header>
+
+<main>
+
+<div class="hero" id="inicio">
+  <div class="hero-copy">
+    <span class="eyebrow" style="color: var(--on-sky)">BYOA responsable</span>
+    <h1 class="greeting">Tu equipo ya trabaja con agentes. <em>Que lo hagan bajo tus reglas.</em></h1>
+    <p class="lede">Soul Gateway conecta los agentes que tu gente ya usa con los sistemas de la empresa. Cada agente tiene una persona responsable, entra solo a lo que aprobaste y espera tu firma en lo delicado.</p>
+    <div class="hero-actions">
+      <a class="btn dark" href="#demo">Pedir una demo</a>
+      <a class="btn light" href="#pasos">Ver cómo entra un agente</a>
+    </div>
+    <div class="works-with" aria-label="Agentes compatibles">
+      <span class="chip"><span class="dot"></span>Claude Code</span>
+      <span class="chip"><span class="dot"></span>Cualquier agente que hable MCP</span>
+      <span class="chip next"><span class="dot"></span>ChatGPT y Claude web, próximamente</span>
+    </div>
+  </div>
+
+  <div class="demo" aria-label="Ejemplo de un agente trabajando en Finanzas">
+    <article class="glass passport">
+      <span class="eyebrow">Ficha del agente · KYA</span>
+      <div class="passport-head">
+        <div class="avatar" aria-hidden="true">C</div>
+        <div>
+          <div class="passport-name">Claude de Camila</div>
+          <div class="small">Responsable: Camila Torres · Finanzas</div>
+        </div>
+        <span class="status ok">Activo</span>
+      </div>
+      <dl class="kv">
+        <dt>Nivel</dt><dd>2 · Colaborador</dd>
+        <dt>Puede usar</dt><dd>Finanzas y CRM</dd>
+        <dt>Ve hasta</dt><dd>Datos confidenciales</dd>
+        <dt>Llave</dt><dd class="tab-nums">Vence el 26/11</dd>
+      </dl>
+    </article>
+
+    <button class="glass act" id="act" type="button" aria-pressed="false">
+      <span class="verb" id="verb">Firmar</span>
+      <span class="act-text">
+        <span class="conclusion" id="act-line">el pago de $1.200.000 a Imprenta Sur, que propone el Claude de Camila.</span>
+        <span class="caption" id="act-why">Se detuvo porque los pagos sobre $500.000 los aprueba la jefatura de Camila.</span>
+      </span>
+    </button>
+
+    <article class="glass log" aria-live="polite">
+      <div class="log-head">
+        <span class="eyebrow">Bitácora</span>
+        <span class="caption">Ejemplo · cada fila sella la anterior</span>
+      </div>
+      <ol id="log">
+        <li><time>10:41</time><span>Leyó 3 facturas pendientes de Imprenta Sur</span><code>a91f…</code></li>
+        <li><time>10:42</time><span>Ocultó el RUT del proveedor: su nivel no lo ve</span><code>3c07…</code></li>
+        <li><time>10:43</time><span>Propuso pagar $1.200.000 y espera firma</span><code>e5d2…</code></li>
+      </ol>
+    </article>
+  </div>
+</div>
+
+<section id="problema">
+  <div class="section-head col">
+    <h2 class="page-title">Prohibirlos no los saca de la empresa. <em>Los esconde.</em></h2>
+  </div>
+  <div class="compare">
+    <article class="glass panel muted">
+      <span class="eyebrow">Sin reglas</span>
+      <p class="conclusion">Los agentes trabajan igual, pero con cuentas personales y sin que nadie lo vea.</p>
+      <ul>
+        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span>Se copian datos de clientes a mano en chats personales.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span>Una llave de API compartida queda guardada en diez computadores.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span>Nadie sabe qué agente cambió un precio, ni quién responde por él.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span>Cuando alguien deja la empresa, sus agentes siguen entrando.</span></li>
+      </ul>
+    </article>
+    <article class="glass panel">
+      <span class="eyebrow">Con Soul Gateway</span>
+      <p class="conclusion">Los invitas a trabajar con ficha, permisos y una persona que responde por ellos.</p>
+      <ul>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Cada agente tiene nombre, nivel y una persona que responde por él.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Las credenciales de tus sistemas nunca salen del gateway.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Cada llamada queda registrada con su agente, su responsable y su motivo.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Al desvincular a la persona, sus agentes quedan fuera en el mismo momento.</span></li>
+      </ul>
+    </article>
+  </div>
+</section>
+
+<section id="capas">
+  <div class="section-head col">
+    <span class="eyebrow" style="color: var(--on-sky)">Cómo protege</span>
+    <h2 class="page-title">Seis capas entre el agente y tus sistemas.</h2>
+  </div>
+  <div class="layers">
+    <article class="glass layer">
+      <div class="ico" aria-hidden="true"><svg><use href="#i-id"/></svg></div>
+      <h3>Pasaporte</h3>
+      <p>Identidad firmada, ligada a una persona responsable. Tus sistemas la verifican sin preguntarle a nadie.</p>
+      <p class="proof">JWT ES256 con llaves públicas en /.well-known/jwks.json</p>
+    </article>
+    <article class="glass layer">
+      <div class="ico" aria-hidden="true"><svg><use href="#i-key"/></svg></div>
+      <h3>Acceso por nivel</h3>
+      <p>Solo lo que su jefatura aprobó. De Observador a Autónomo, y nunca más de lo que permite el modelo que usa.</p>
+      <p class="proof">Niveles 0 a 3 · techo por proveedor de modelo</p>
+    </article>
+    <article class="glass layer">
+      <div class="ico" aria-hidden="true"><svg><use href="#i-lock"/></svg></div>
+      <h3>Bóveda</h3>
+      <p>El agente usa tus sistemas, pero nunca tiene sus credenciales. Revocarlo no obliga a rotar nada.</p>
+      <p class="proof">Credenciales solo en el gateway</p>
+    </article>
+    <article class="glass layer">
+      <div class="ico" aria-hidden="true"><svg><use href="#i-pen"/></svg></div>
+      <h3>Firma</h3>
+      <p>Una persona firma lo delicado viendo qué se hará y por qué. La firma vale una vez, para esos datos exactos.</p>
+      <p class="proof">Aprobación ligada al hash de los argumentos</p>
+    </article>
+    <article class="glass layer">
+      <div class="ico" aria-hidden="true"><svg><use href="#i-shield"/></svg></div>
+      <h3>Escudo de datos</h3>
+      <p>Oculta lo que el modelo del agente no debe ver, como un RUT o una tarjeta, y avisa si un dato trae instrucciones escondidas.</p>
+      <p class="proof">DLP con RUT y Luhn · detección de inyección</p>
+    </article>
+    <article class="glass layer">
+      <div class="ico" aria-hidden="true"><svg><use href="#i-list"/></svg></div>
+      <h3>Bitácora</h3>
+      <p>Registro a prueba de alteraciones. Si alguien borra o cambia una fila, la cadena lo delata.</p>
+      <p class="proof">Cadena de hashes verificable</p>
+    </article>
+  </div>
+  <div class="glass note">
+    <span class="status ok">Funcionando hoy</span>
+    <span class="small">Las seis capas corren en la versión actual. Lo que viene está más abajo, en la hoja de ruta.</span>
+  </div>
+</section>
+
+<section id="pasos">
+  <div class="section-head col">
+    <span class="eyebrow" style="color: var(--on-sky)">Cómo entra un agente</span>
+    <h2 class="page-title">Entra como entra una persona nueva: <em>con jefatura y permisos.</em></h2>
+  </div>
+  <div class="steps-grid">
+    <ol class="glass steps">
+      <li><div><strong>La persona inscribe su agente</strong><span>Le pone nombre, dice qué modelo usa y acepta el acuerdo de uso responsable.</span></div></li>
+      <li><div><strong>Su jefatura lo aprueba</strong><span>Elige el nivel y los sistemas que puede usar. Nadie aprueba su propio agente.</span></div></li>
+      <li><div><strong>El agente recibe su llave</strong><span>Se muestra una sola vez y se conecta con una línea, por MCP.</span></div></li>
+      <li><div><strong>Cada llamada pasa por tus reglas</strong><span>Lo permitido corre solo. Lo delicado espera firma. Lo prohibido se bloquea con su motivo.</span></div></li>
+      <li><div><strong>Se recertifica o se va</strong><span>La llave vence y la persona confirma cada 90 días que el agente sigue haciendo falta.</span></div></li>
+    </ol>
+    <article class="glass code-card">
+      <span class="eyebrow">Una línea para conectarlo · probado con Claude Code</span>
+<pre class="code" tabindex="0">claude mcp add --transport http tu-empresa \
+  https://agentes.tuempresa.cl/mcp \
+  --header "Authorization: Bearer agw_…"</pre>
+      <span class="eyebrow" style="padding-top: 6px">Una regla se lee así</span>
+<pre class="code" tabindex="0"><span class="k">- id:</span> pagos-altos-con-jefatura
+  <span class="k">description:</span> Pagos sobre $500.000 los
+    aprueba la jefatura del responsable.
+  <span class="k">when:</span>
+    <span class="k">connectors:</span> [finanzas]
+    <span class="k">tools:</span> [emitir_pago]
+    <span class="k">args:</span>
+      - { path: monto, op: gt, value: 500000 }
+  <span class="k">effect:</span> require_approval
+  <span class="k">approver:</span> manager</pre>
+      <p class="caption">Las políticas viven en un archivo versionado: cada cambio pasa por revisión y queda en el historial. Una regla nueva puede partir en modo observación para medir su efecto antes de aplicarla.</p>
+    </article>
+  </div>
+</section>
+
+<section id="terceros">
+  <div class="section-head col">
+    <span class="eyebrow" style="color: var(--on-sky)">Agentes de terceros</span>
+    <h2 class="page-title">El agente de tu proveedor también puede trabajar contigo. <em>Con llave propia.</em></h2>
+  </div>
+  <div class="third">
+    <article class="glass panel">
+      <p class="conclusion">Una agencia, un contador externo o el agente de un cliente entran patrocinados por alguien de tu equipo, que responde por ellos.</p>
+      <ul>
+        <li><svg aria-hidden="true"><use href="#i-key"/></svg><span>Su token queda ligado a su propia clave. Si lo copian o lo pasan a otro agente, no sirve.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-shield"/></svg><span>Los aprueba Seguridad, no la jefatura del patrocinador.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-clock"/></svg><span>Su llave dura 7 días y su acceso se revisa cada 30.</span></li>
+      </ul>
+    </article>
+    <article class="glass panel">
+      <span class="eyebrow">Ficha de un tercero</span>
+      <dl class="kv">
+        <dt>Agente</dt><dd>Agente de Agencia Pulso</dd>
+        <dt>Patrocina</dt><dd>Felipe Rojas · Marketing</dd>
+        <dt>Nivel máximo</dt><dd>1 · Asistente</dd>
+        <dt>Ve hasta</dt><dd>Datos internos</dd>
+        <dt>Llave</dt><dd>Ligada a su clave (DPoP)</dd>
+        <dt>Correos a nombre tuyo</dt><dd>No puede enviarlos</dd>
+      </dl>
+      <p class="caption">Ejemplo ilustrativo. Basado en RFC 9449 y RFC 7638.</p>
+    </article>
+  </div>
+</section>
+
+<section id="areas">
+  <div class="section-head col">
+    <span class="eyebrow" style="color: var(--on-sky)">Para cualquier rubro</span>
+    <h2 class="page-title">Una regla para cada área. <em>Escrita como la dirías.</em></h2>
+  </div>
+  <div class="rules">
+    <article class="glass rule"><span class="eyebrow">Finanzas</span><p class="conclusion">Los pagos sobre $500.000 los aprueba la jefatura del responsable.</p><span class="status warn">Espera firma</span></article>
+    <article class="glass rule"><span class="eyebrow">Ventas</span><p class="conclusion">Un correo a alguien fuera de la empresa espera la firma de quien responde por el agente.</p><span class="status warn">Espera firma</span></article>
+    <article class="glass rule"><span class="eyebrow">Clientes</span><p class="conclusion">Ningún agente elimina la ficha de un cliente. Eso lo hace una persona.</p><span class="status bad">Bloqueado</span></article>
+    <article class="glass rule"><span class="eyebrow">Operaciones</span><p class="conclusion">Fuera del horario laboral, cualquier cambio espera firma.</p><span class="status warn">Espera firma</span></article>
+    <article class="glass rule"><span class="eyebrow">Datos sensibles</span><p class="conclusion">Solo los agentes de personas de Finanzas o Comercial entran al sistema de finanzas.</p><span class="status bad">Bloqueado</span></article>
+    <article class="glass rule"><span class="eyebrow">Terceros</span><p class="conclusion">Los agentes de proveedores no envían correos a nombre de la empresa.</p><span class="status bad">Bloqueado</span></article>
+  </div>
+  <div class="glass note">
+    <span class="small">Son las reglas de ejemplo que trae el gateway, y las cambias en un archivo. Se conecta a cualquier sistema que tenga un servidor MCP: CRM, ERP, correo o documentos. Si tienes un hotel, Soul suma un agente propio del rubro que usa la misma puerta.</span>
+  </div>
+</section>
+
+<section id="planes">
+  <div class="section-head col">
+    <span class="eyebrow" style="color: var(--on-sky)">Planes</span>
+    <h2 class="page-title">Pagas por agente conectado, al mes.</h2>
+  </div>
+  <div class="plans">
+    <article class="glass plan featured">
+      <div class="plan-name">soul <span>pyme</span></div>
+      <p class="small">Para el dueño que quiere ordenar los agentes de su equipo sin un área de TI.</p>
+      <ul>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Las seis capas de protección</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Te ayudamos a conectar tus primeros sistemas</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Reglas de ejemplo para partir</span></li>
+        <li class="soon"><svg aria-hidden="true"><use href="#i-clock"/></svg><span>Configuración por tu cuenta, próximamente</span></li>
+      </ul>
+      <a class="btn dark" href="#demo">Pedir una demo</a>
+    </article>
+    <article class="glass plan">
+      <div class="plan-name">soul <span>empresa</span></div>
+      <p class="small">Para equipos de TI y seguridad que necesitan integrarlo a su operación.</p>
+      <ul>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Políticas como código, en tu repositorio</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Instalación en tu propia nube, con Docker</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Bitácora en JSON por línea, lista para tu SIEM</span></li>
+        <li class="soon"><svg aria-hidden="true"><use href="#i-clock"/></svg><span>SSO y bajas automáticas, próximamente</span></li>
+      </ul>
+      <a class="btn light" href="#demo">Conversar</a>
+    </article>
+  </div>
+</section>
+
+<section id="ruta">
+  <div class="road">
+    <article class="glass panel">
+      <span class="eyebrow">Hoja de ruta</span>
+      <p class="conclusion">Lo que sigue, en este orden.</p>
+      <ul>
+        <li><span>Inicio de sesión OAuth 2.1 para ChatGPT y Claude web</span><span class="status warn">Próximo</span></li>
+        <li><span>Firmas de un toque por WhatsApp y Slack</span><span class="status warn">Próximo</span></li>
+        <li><span>Bóveda que configura el propio cliente</span><span class="status warn">Próximo</span></li>
+        <li><span>SSO y bajas automáticas desde tu proveedor de identidad</span><span class="status warn">Próximo</span></li>
+      </ul>
+    </article>
+    <article class="glass panel">
+      <span class="eyebrow">Pensado para cumplir</span>
+      <p class="conclusion">Cada acción tiene responsable y registro: la base de la responsabilidad demostrada.</p>
+      <ul>
+        <li><span>Ley 21.719 de protección de datos personales, Chile</span><span class="caption tab-nums">Dic 2026</span></li>
+        <li><span>OWASP Top 10 para aplicaciones LLM</span><span class="caption">Referencia</span></li>
+        <li><span>NIST AI RMF e ISO/IEC 42001</span><span class="caption">Referencia</span></li>
+      </ul>
+      <p class="caption">Son marcos de referencia del diseño, no certificaciones.</p>
+    </article>
+  </div>
+</section>
+
+<section id="demo">
+  <article class="glass contact">
+    <div style="display: grid; gap: 14px; align-content: start; min-width: 0">
+      <span class="eyebrow">Pedir una demo</span>
+      <h2 class="page-title" style="color: var(--ink)">Trae un agente de tu equipo. <em>Lo conectamos en la llamada.</em></h2>
+      <p class="small">En 30 minutos inscribimos un agente real, le damos acceso a un sistema de prueba y firmas tu primera acción.</p>
+    </div>
+    <div style="min-width: 0">
+      <form id="form" novalidate>
+        <div class="two">
+          <div class="field"><label for="f-name">Tu nombre</label><input id="f-name" name="name" autocomplete="name" placeholder="Paula Soto" required></div>
+          <div class="field"><label for="f-company">Empresa</label><input id="f-company" name="company" autocomplete="organization" placeholder="Comercial Andes SpA" required></div>
+        </div>
+        <div class="field"><label for="f-email">Correo</label><input id="f-email" name="email" type="email" autocomplete="email" placeholder="paula@comercialandes.cl" required></div>
+        <fieldset class="field">
+          <legend>Personas que usan agentes</legend>
+          <div class="seg">
+            <input type="radio" name="size" id="s1" value="1 a 10" checked><label for="s1">1 a 10</label>
+            <input type="radio" name="size" id="s2" value="11 a 50"><label for="s2">11 a 50</label>
+            <input type="radio" name="size" id="s3" value="Más de 50"><label for="s3">Más de 50</label>
+          </div>
+        </fieldset>
+        <fieldset class="field">
+          <legend>Qué agentes usan</legend>
+          <div class="picks">
+            <input type="checkbox" id="a1" value="Claude"><label class="chip" for="a1">Claude</label>
+            <input type="checkbox" id="a2" value="ChatGPT"><label class="chip" for="a2">ChatGPT</label>
+            <input type="checkbox" id="a3" value="Cursor"><label class="chip" for="a3">Cursor</label>
+            <input type="checkbox" id="a4" value="Copilot"><label class="chip" for="a4">Copilot</label>
+            <input type="checkbox" id="a5" value="Agentes de proveedores"><label class="chip" for="a5">De proveedores</label>
+          </div>
+        </fieldset>
+        <div class="field"><label for="f-note">Qué te gustaría que hicieran</label><textarea id="f-note" name="note" placeholder="Que los agentes de ventas preparen cotizaciones y que yo firme antes de enviarlas."></textarea></div>
+        <p class="error" id="error" hidden></p>
+        <div><button class="btn dark" type="submit">Preparar mi solicitud</button></div>
+      </form>
+      <div class="done" id="done" hidden>
+        <span class="status ok" style="justify-self: start">Solicitud lista</span>
+        <p class="small" id="done-text">Copia tu solicitud y envíala a tu contacto en Soul.</p>
+        <pre id="summary"></pre>
+        <div class="row">
+          <button class="btn dark" type="button" id="copy"><svg aria-hidden="true"><use href="#i-copy"/></svg><span id="copy-label">Copiar la solicitud</span></button>
+          <button class="btn light" type="button" id="edit">Editar</button>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+</main>
+
+<footer>
+  <span class="glass"><span class="wordmark" style="font-size: 15px">soul</span> gateway · Agentes con responsable</span>
+  <span class="glass">Hecho en Chile</span>
+</footer>
+
+</div>
+
+<script>
+(() => {
+  // Correo de contacto que se muestra al preparar la solicitud. Vacío: se pide enviarla al contacto en Soul.
+  const CONTACT = "";
+
+  // Demo de la firma: resuelve la acción y suma una fila sellada a la bitácora.
+  const act = document.getElementById("act");
+  const log = document.getElementById("log");
+  const hex = () => Array.from(crypto.getRandomValues(new Uint8Array(2)), b => b.toString(16).padStart(2, "0")).join("");
+  const now = () => new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const addRow = text => {
+    const li = document.createElement("li");
+    li.className = "new";
+    li.innerHTML = `<time>${now()}</time><span></span><code>${hex()}…</code>`;
+    li.querySelector("span").textContent = text;
+    log.appendChild(li);
+    while (log.children.length > 4) log.removeChild(log.firstElementChild);
+  };
+  act.addEventListener("click", () => {
+    if (act.getAttribute("aria-pressed") === "true") return;
+    act.setAttribute("aria-pressed", "true");
+    document.getElementById("verb").textContent = "Firmado";
+    document.getElementById("act-line").textContent = "El pago a Imprenta Sur se emitió una sola vez, por $1.200.000 exactos.";
+    document.getElementById("act-why").textContent = "Firmó Rodrigo Paz, jefe de Finanzas.";
+    addRow("Rodrigo firmó el pago a Imprenta Sur");
+    setTimeout(() => addRow("Emitió el pago una sola vez"), 450);
+  });
+
+  // Formulario: arma la solicitud en la página para copiarla.
+  const form = document.getElementById("form");
+  const done = document.getElementById("done");
+  const error = document.getElementById("error");
+  const summary = document.getElementById("summary");
+  if (CONTACT) document.getElementById("done-text").textContent = `Copia tu solicitud y envíala a ${CONTACT}.`;
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const $ = id => document.getElementById(id);
+    const name = $("f-name").value.trim(), company = $("f-company").value.trim(), email = $("f-email").value.trim();
+    if (!name || !company || !email || !$("f-email").checkValidity()) {
+      error.textContent = !name ? "Falta tu nombre." : !company ? "Falta el nombre de tu empresa." : "Revisa tu correo: debe tener la forma nombre@empresa.cl.";
+      error.hidden = false;
+      return;
+    }
+    error.hidden = true;
+    const agents = [...form.querySelectorAll(".picks input:checked")].map(i => i.value);
+    const lines = [
+      "Hola, quiero una demo de Soul Gateway.",
+      "",
+      `Nombre: ${name}`,
+      `Empresa: ${company}`,
+      `Correo: ${email}`,
+      `Personas que usan agentes: ${form.querySelector(".seg input:checked").value}`,
+      `Agentes: ${agents.length ? agents.join(", ") : "Por definir"}`,
+    ];
+    const note = $("f-note").value.trim();
+    if (note) lines.push(`Lo que buscamos: ${note}`);
+    summary.textContent = lines.join("\n");
+    form.hidden = true;
+    done.hidden = false;
+  });
+  document.getElementById("edit").addEventListener("click", () => { done.hidden = true; form.hidden = false; });
+  document.getElementById("copy").addEventListener("click", async () => {
+    const label = document.getElementById("copy-label");
+    try {
+      await navigator.clipboard.writeText(summary.textContent);
+      label.textContent = "Copiada";
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents(summary);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      label.textContent = "Seleccionada: cópiala con tu teclado";
+    }
+  });
+
+  // Estrellas para el cielo de noche.
+  const canvas = document.getElementById("stars");
+  const ctx = canvas.getContext("2d");
+  const seed = Array.from({ length: 140 }, () => [Math.random(), Math.random() * 0.7, Math.random() * 1.1 + 0.3, Math.random() * 0.6 + 0.2]);
+  const draw = () => {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr;
+    ctx.scale(dpr, dpr);
+    for (const [x, y, r, a] of seed) {
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+      ctx.arc(x * innerWidth, y * innerHeight, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+  draw();
+  addEventListener("resize", draw);
+})();
+</script>
+
+</body>
+</html>
