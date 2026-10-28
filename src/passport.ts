@@ -2,7 +2,7 @@ import { type KeyObject, createPublicKey, randomUUID } from "node:crypto";
 import { type GatewayConfig, getTier } from "./config.js";
 import { type Jwk, decodeJwt, generateEs256, jwkThumbprint, privateKeyFromJwk, publicJwkOf, signJwt, verifySignature } from "./jose.js";
 import type { Store } from "./store.js";
-import type { Agent, Person } from "./types.js";
+import type { Agent, ApprovalRequest, ApproverKind, Person, ToolAccess } from "./types.js";
 
 /**
  * Pasaporte del agente: credencial firmada por el gateway que dice quién es el agente,
@@ -15,6 +15,7 @@ import type { Agent, Person } from "./types.js";
  */
 
 export const PASSPORT_TYP = "agent-passport+jwt";
+export const DELEGATION_TYP = "agent-delegation+jwt";
 
 export interface PassportClaims {
   iss: string;
@@ -27,6 +28,45 @@ export interface PassportClaims {
   authorization: { tier: number | null; tierName: string | null; clearance: string | null; connectors: string[] };
   cnf?: { jkt: string };
 }
+
+/**
+ * Token de delegación: una sola acción, de un agente, a nombre de una persona, hacia un sistema.
+ * Sigue el modelo de delegación de OAuth (RFC 8693): `sub` es la persona y `act` es el agente que actúa por ella.
+ */
+export interface DelegationClaims {
+  iss: string;
+  /** La persona por la que actúa el agente. */
+  sub: string;
+  name: string;
+  email: string;
+  department: string | null;
+  /** El conector que recibe la llamada; otro sistema debe rechazar el token. */
+  aud: string;
+  iat: number;
+  exp: number;
+  jti: string;
+  /** El agente que actúa (RFC 8693, sección 4.1). */
+  act: { sub: string; name: string; origin: string; organization: string | null };
+  /** Lo que se autoriza: esta herramienta, con estos argumentos exactos. */
+  tool: string;
+  access: ToolAccess;
+  args_sha256: string;
+  authorization: { tier: number | null; clearance: string | null };
+  /** La firma humana, cuando la acción la necesitó. */
+  approval?: { id: string; approver: ApproverKind; approved_by: string | null };
+}
+
+export interface DelegationInput {
+  agent: Agent;
+  owner: Person;
+  connectorId: string;
+  tool: string;
+  access: ToolAccess;
+  argsHash: string;
+  approval: ApprovalRequest | null;
+}
+
+export type DelegationVerification = { ok: true; claims: DelegationClaims } | { ok: false; reason: string };
 
 export type PassportVerification =
   | { ok: true; claims: PassportClaims; active: boolean; status: string }
@@ -102,6 +142,42 @@ export class PassportIssuer {
     const token = this.issue(agent, owner, now);
     this.cache.set(key, { token, exp: Math.floor(now.getTime() / 1000) + Math.round(this.config.passport.ttlMinutes * 60) });
     return token;
+  }
+
+  /** Firma un token de delegación de vida corta para una llamada concreta. */
+  delegate(input: DelegationInput, now: Date): { token: string; claims: DelegationClaims } {
+    const { agent, owner, approval } = input;
+    const iat = Math.floor(now.getTime() / 1000);
+    const claims: DelegationClaims = {
+      iss: this.issuer,
+      sub: owner.id,
+      name: owner.name,
+      email: owner.email,
+      department: owner.department,
+      aud: input.connectorId,
+      iat,
+      exp: iat + this.config.delegation.ttlSeconds,
+      jti: randomUUID(),
+      act: { sub: agent.id, name: agent.name, origin: agent.manifest.origin, organization: agent.manifest.organization },
+      tool: input.tool,
+      access: input.access,
+      args_sha256: input.argsHash,
+      authorization: { tier: agent.tier, clearance: agent.clearance },
+      ...(approval ? { approval: { id: approval.id, approver: approval.approver, approved_by: approval.decidedBy?.replace(/^person:/, "") ?? null } } : {}),
+    };
+    const token = signJwt({ typ: DELEGATION_TYP, kid: this.kid }, claims as unknown as Record<string, unknown>, this.privateKey);
+    return { token, claims };
+  }
+
+  /** Verificación que haría un conector: firma, tipo, audiencia y vigencia. */
+  verifyDelegation(token: string, audience: string, now: Date): DelegationVerification {
+    const jwt = decodeJwt(token);
+    if (!jwt || jwt.header.typ !== DELEGATION_TYP || jwt.header.kid !== this.kid) return { ok: false, reason: "Formato o emisor desconocido" };
+    if (!verifySignature(jwt, this.publicKey)) return { ok: false, reason: "Firma inválida" };
+    const claims = jwt.payload as unknown as DelegationClaims;
+    if (claims.aud !== audience) return { ok: false, reason: `El token es para ${String(claims.aud)}, no para ${audience}` };
+    if (typeof claims.exp !== "number" || claims.exp * 1000 < now.getTime()) return { ok: false, reason: "Token vencido" };
+    return { ok: true, claims };
   }
 
   verify(token: string, now: Date): PassportVerification {

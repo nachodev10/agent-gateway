@@ -98,6 +98,46 @@ El gateway firma un **pasaporte** (JWT ES256) que dice quién es el agente, de q
 - Es de vida corta (15 minutos por defecto). La revocación real ocurre en el gateway, que valida el estado en cada request.
 - La clave de firma se genera y guarda en la base, o se entrega con `AGW_SIGNING_KEY` (JWK privado) desde un gestor de secretos.
 
+## Delegación por llamada
+
+Además del pasaporte, cada llamada lleva un **token de delegación** firmado con la misma clave, con la forma de delegación de OAuth (RFC 8693): `sub` es la persona y `act` es el agente que actúa por ella. Vale para una sola acción.
+
+- `aud` es el conector que recibe la llamada: otro sistema debe rechazarlo.
+- `tool`, `access` y `args_sha256` dicen qué herramienta se autorizó y con qué argumentos exactos.
+- `approval` aparece cuando la acción necesitó firma humana: quién firmó y con qué solicitud.
+- Vence a los 120 segundos (`delegation.ttlSeconds`).
+- Va en `_meta["agent-gateway/delegation"]` y, en conectores http con `delegationHeader`, también en esa cabecera. Su `jti` queda en la bitácora para cruzar los registros del sistema con los del gateway.
+
+Un conector lo verifica sin llamar al gateway: firma ES256 con la clave de `/.well-known/jwks.json`, `typ` igual a `agent-delegation+jwt`, `aud` igual a su propio id y `exp` vigente.
+
+## Credenciales temporales desde Vault
+
+Las credenciales de los sistemas pueden venir de **HashiCorp Vault u OpenBao** en vez de quedar fijas en el entorno. El gateway las pide justo antes de usarlas y las reutiliza solo mientras dura su arriendo; con secretos dinámicos (bases de datos, nubes) cada credencial es única y Vault la revoca sola al vencer.
+
+```yaml
+vault:
+  address: https://vault.miempresa.cl
+  approle: { roleId: "${VAULT_ROLE_ID}", secretId: "${VAULT_SECRET_ID}" }
+
+connectors:
+  - id: docs
+    transport: http
+    url: https://mcp.interno.miempresa.cl/mcp
+    delegationHeader: Agent-Delegation
+    credentials:
+      - header: Authorization
+        prefix: "Bearer "
+        vault: { path: secret/data/docs, field: token }
+      # Una credencial de solo lectura para leer y otra para escribir.
+      - header: X-Db-Password
+        vault: { path: "database/creds/docs-{access}", field: password }
+```
+
+- En conectores http la credencial se resuelve en cada llamada; en stdio, al lanzar el proceso.
+- `{access}` toma el tipo de acceso de la herramienta (`read`, `write` o `destructive`) y `{connector}` el id del conector. Al conectar y listar herramientas, fuera de una llamada, se usa `read`.
+- La bitácora registra la ruta, el campo, el arriendo y los segundos de vida restantes; nunca el valor.
+- Si Vault no responde, la llamada falla con el motivo y queda registrada. Ninguna credencial cae a un valor de respaldo.
+
 ## Qué incluye esta versión
 
 - **Gateway MCP** (Streamable HTTP): agrega los conectores de la empresa en un único servidor MCP por agente, con instrucciones de operación personalizadas.
@@ -112,6 +152,8 @@ El gateway firma un **pasaporte** (JWT ES256) que dice quién es el agente, de q
 - **Bitácora encadenada** con verificación de integridad y exportación JSON por línea para un SIEM.
 - **Agentes de terceros** patrocinados por un empleado, con topes de nivel y de datos y token ligado a su clave (DPoP).
 - **Pasaporte del agente** firmado por el gateway y verificable por cualquier sistema.
+- **Delegación por llamada** (RFC 8693): cada sistema sabe a nombre de qué persona actúa el agente, en qué acción y con qué firma.
+- **Credenciales temporales** desde HashiCorp Vault u OpenBao, con una credencial distinta para leer y para escribir.
 - **Guardrails** antes y después de cada llamada (inyección de instrucciones, regex, validador externo) y reglas en modo observación.
 - **Imagen Docker** de producción.
 - **Ciclo de vida**: tokens que vencen y rotan, recertificación periódica, cortacircuitos, desvinculación que suspende agentes y revoca tokens.
@@ -316,7 +358,8 @@ src/
   api.ts                 API de la consola
   auth.ts · tokens.ts    Identidad de agentes y personas
   dpop.ts · jose.ts      Tokens ligados a la clave del agente (DPoP) y firmas ES256
-  passport.ts            Pasaporte firmado del agente
+  passport.ts            Pasaporte firmado del agente y token de delegación por llamada
+  vault.ts               Credenciales temporales desde Vault u OpenBao
   guardrails.ts          Chequeos de contenido antes y después de cada llamada
   store.ts               Persistencia (SQLite)
 public/                  Consola web (sin build)

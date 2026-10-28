@@ -63,6 +63,16 @@ dpop:
 passport:
   ttlMinutes: 15
 
+# Token de delegación por llamada (RFC 8693): a nombre de qué persona actúa el agente, para una sola acción.
+delegation:
+  ttlSeconds: 120
+
+# Credenciales temporales desde HashiCorp Vault u OpenBao (opcional).
+# vault:
+#   address: https://vault.miempresa.cl
+#   approle: { roleId: "${VAULT_ROLE_ID}", secretId: "${VAULT_SECRET_ID}" }
+#   renewBeforeSeconds: 30
+
 # Techo de clasificación según dónde procesa los datos el modelo del agente.
 # Todo lo que el gateway entrega llega al proveedor de modelo del empleado.
 # Ajusta estas categorías a tus contratos reales.
@@ -134,8 +144,13 @@ connectors:
   #   classification: internal
   #   transport: http
   #   url: https://mcp.interno.miempresa.cl/mcp
-  #   headers:
-  #     Authorization: "Bearer ${DOCS_MCP_TOKEN}"
+  #   delegationHeader: Agent-Delegation  # el sistema recibe el token de delegación de cada llamada
+  #   credentials:                        # pedidas a Vault en cada llamada, nunca fijas
+  #     - header: Authorization
+  #       prefix: "Bearer "
+  #       vault: { path: secret/data/docs, field: token }
+  #     - header: X-Db-Password            # una credencial para leer y otra para escribir
+  #       vault: { path: "database/creds/docs-{access}", field: password }
   #   tools:
   #     borrar_carpeta: { hidden: true }
   #     publicar: { access: write }

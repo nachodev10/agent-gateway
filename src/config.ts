@@ -126,6 +126,33 @@ const tier = z.strictObject({
   approvedBy: z.enum(["manager", "security"]).default("manager"),
 });
 
+/** Placeholders que admite la ruta de un secreto en Vault. */
+export const SECRET_PATH_VARS = ["access", "connector"] as const;
+
+/**
+ * Credencial de un conector que se pide a Vault u OpenBao en vez de quedar fija en el entorno.
+ * En conectores http va como cabecera y se resuelve en cada llamada; en stdio va como variable
+ * de entorno del proceso y se resuelve al conectar.
+ */
+const credential = z
+  .strictObject({
+    header: z.string().regex(/^[A-Za-z0-9-]+$/, "Nombre de cabecera inválido").optional(),
+    env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "Nombre de variable inválido").optional(),
+    /** Texto antes del valor, p. ej. "Bearer ". */
+    prefix: z.string().default(""),
+    vault: z.strictObject({
+      /** Ruta de lectura en Vault. Admite {access} (read, write o destructive) y {connector}. */
+      path: z
+        .string()
+        .min(1)
+        .refine((p) => [...p.matchAll(/\{([^}]*)\}/g)].every((m) => (SECRET_PATH_VARS as readonly string[]).includes(m[1]!)), {
+          message: `La ruta solo admite ${SECRET_PATH_VARS.map((v) => `{${v}}`).join(" y ")}`,
+        }),
+      field: z.string().min(1),
+    }),
+  })
+  .refine((c) => (c.header ? 1 : 0) + (c.env ? 1 : 0) === 1, "Indica 'header' o 'env', uno de los dos");
+
 const connector = z
   .strictObject({
     id: z.string().regex(/^[a-z][a-z0-9-]{0,30}$/, "Usa minúsculas, números y guiones (sin guion bajo)"),
@@ -140,6 +167,10 @@ const connector = z
     url: z.string().optional(),
     headers: z.record(z.string(), z.string()).default({}),
     timeoutSeconds: z.number().positive().default(30),
+    /** Credenciales que se piden a Vault: el conector nunca guarda una clave fija. */
+    credentials: z.array(credential).default([]),
+    /** Cabecera en la que un conector http recibe el token de delegación de cada llamada. */
+    delegationHeader: z.string().regex(/^[A-Za-z0-9-]+$/, "Nombre de cabecera inválido").optional(),
     /** Ajustes por herramienta: forzar el tipo de acceso u ocultarla. */
     tools: z
       .record(z.string(), z.strictObject({ access: access.optional(), hidden: z.boolean().optional() }))
@@ -152,7 +183,34 @@ const connector = z
     if (c.transport === "http" && !c.url) {
       ctx.addIssue({ code: "custom", message: "Un conector http requiere 'url'", path: ["url"] });
     }
+    c.credentials.forEach((cred, i) => {
+      if (c.transport === "http" && cred.env) {
+        ctx.addIssue({ code: "custom", message: "Un conector http recibe credenciales como 'header'", path: ["credentials", i] });
+      }
+      if (c.transport === "stdio" && cred.header) {
+        ctx.addIssue({ code: "custom", message: "Un conector stdio recibe credenciales como 'env'", path: ["credentials", i] });
+      }
+    });
+    if (c.transport === "stdio" && c.delegationHeader) {
+      ctx.addIssue({ code: "custom", message: "'delegationHeader' solo aplica a conectores http", path: ["delegationHeader"] });
+    }
   });
+
+/** HashiCorp Vault u OpenBao: de dónde salen las credenciales de los conectores. */
+const vault = z
+  .strictObject({
+    address: z.string().url(),
+    /** Token fijo de Vault. Para producción, mejor AppRole. */
+    token: z.string().min(1).optional(),
+    approle: z.strictObject({ roleId: z.string().min(1), secretId: z.string().min(1), mount: z.string().default("approle") }).optional(),
+    namespace: z.string().optional(),
+    /** Vigencia que se asume para secretos sin arriendo (KV). */
+    defaultTtlSeconds: z.number().int().positive().default(300),
+    /** Se pide una credencial nueva cuando a la actual le queda menos que esto. */
+    renewBeforeSeconds: z.number().int().min(0).default(30),
+    timeoutMs: z.number().int().positive().max(30_000).default(5000),
+  })
+  .refine((v) => (v.token ? 1 : 0) + (v.approle ? 1 : 0) === 1, "Indica 'token' o 'approle', uno de los dos");
 
 const reveal = z.union([classification, z.literal("never")]);
 
@@ -216,6 +274,9 @@ export const configSchema = z
     dpop: z.strictObject({ maxAgeSeconds: z.number().positive().max(600).default(120) }).prefault({}),
     /** Pasaporte del agente: credencial firmada por el gateway que reciben los conectores. */
     passport: z.strictObject({ ttlMinutes: z.number().positive().max(1440).default(15) }).prefault({}),
+    /** Token de delegación por llamada (RFC 8693): la persona por la que actúa el agente, para una sola acción. */
+    delegation: z.strictObject({ ttlSeconds: z.number().int().positive().max(600).default(120) }).prefault({}),
+    vault: vault.optional(),
     /** Techo de clasificación según el proveedor de modelo declarado por el agente. */
     modelProviders: z.record(z.string(), classification),
     tiers: z.array(tier).min(1),
@@ -251,6 +312,9 @@ export const configSchema = z
     }
     for (const id of duplicates(c.guardrails.map((g) => g.id))) {
       ctx.addIssue({ code: "custom", message: `Guardrail duplicado: ${id}`, path: ["guardrails"] });
+    }
+    if (!c.vault && c.connectors.some((x) => x.credentials.length > 0)) {
+      ctx.addIssue({ code: "custom", message: "Hay conectores con 'credentials' pero falta la sección 'vault'", path: ["vault"] });
     }
     const known = new Set(c.connectors.map((x) => x.id));
     c.rules.forEach((r, i) => {
@@ -288,8 +352,11 @@ function interpolateEnv(value: unknown, path: string): unknown {
 
 export function parseConfig(raw: unknown): GatewayConfig {
   const input = raw && typeof raw === "object" ? { ...(raw as Record<string, unknown>) } : raw;
-  if (input && typeof input === "object" && "connectors" in input) {
-    (input as Record<string, unknown>).connectors = interpolateEnv((input as Record<string, unknown>).connectors, "connectors");
+  // Solo las secciones que llevan secretos admiten ${VARIABLE}.
+  for (const section of ["connectors", "vault"]) {
+    if (input && typeof input === "object" && section in input) {
+      (input as Record<string, unknown>)[section] = interpolateEnv((input as Record<string, unknown>)[section], section);
+    }
   }
   const result = configSchema.safeParse(input);
   if (!result.success) {

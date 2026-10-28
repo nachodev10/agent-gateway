@@ -464,8 +464,8 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-id"/></svg></div>
       <h3>Pasaporte</h3>
-      <p>Identidad firmada, ligada a una persona responsable. Tus sistemas la verifican sin preguntarle a nadie.</p>
-      <p class="proof">JWT ES256 con llaves públicas en /.well-known/jwks.json</p>
+      <p>Identidad firmada, ligada a una persona responsable. En cada acción, tus sistemas saben por quién actúa el agente y lo verifican sin preguntarle a nadie.</p>
+      <p class="proof">JWT ES256 · delegación por acción (RFC 8693)</p>
     </article>
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-key"/></svg></div>
@@ -476,8 +476,8 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-lock"/></svg></div>
       <h3>Bóveda</h3>
-      <p>El agente usa tus sistemas, pero nunca tiene sus credenciales. Revocarlo no obliga a rotar nada.</p>
-      <p class="proof">Credenciales solo en Agente Pass</p>
+      <p>El agente usa tus sistemas, pero nunca tiene sus credenciales. Con Vault, cada credencial dura minutos y leer y escribir usan claves distintas.</p>
+      <p class="proof">Credenciales temporales con HashiCorp Vault u OpenBao</p>
     </article>
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-pen"/></svg></div>

@@ -1,8 +1,8 @@
 # Estado del producto
 
-Qué está construido y probado, qué está a medias y qué falta. Revisado el 27 de octubre de 2026 contra el código de este repositorio y el de Soul.
+Qué está construido y probado, qué está a medias y qué falta. Revisado el 28 de octubre de 2026 contra el código de este repositorio y el de Soul.
 
-Lo que está construido tiene pruebas automáticas (43 en este repositorio) y CI en verde. Además, la herramienta real de Claude Code (`claude mcp add` y `claude mcp list`) se conectó al gateway por MCP.
+Lo que está construido tiene pruebas automáticas (48 en este repositorio) y CI en verde. Además, la herramienta real de Claude Code (`claude mcp add` y `claude mcp list`) se conectó al gateway por MCP.
 
 ## Construido y probado
 
@@ -12,6 +12,8 @@ Lo que está construido tiene pruebas automáticas (43 en este repositorio) y CI
 | Niveles de confianza 0 a 3 y tope de datos según el proveedor del modelo del agente | `config/gateway.yaml`, `src/policy.ts` |
 | Reglas como código: `deny` prevalece sobre `require_approval`, y esta sobre `allow`; modo observación | `src/policy.ts` |
 | Credenciales de los sistemas solo en el gateway; el agente nunca las recibe | `src/connectors.ts` |
+| Credenciales temporales desde HashiCorp Vault u OpenBao, con arriendo, y distintas para leer y escribir | `src/vault.ts` |
+| Token de delegación por llamada (RFC 8693): persona, agente, sistema, herramienta, argumentos y firma humana | `src/passport.ts`, `src/governance.ts` |
 | Aprobación humana de un solo uso, ligada al hash de los argumentos; nadie aprueba su propio agente | `src/governance.ts`, `src/api.ts` |
 | DLP: secretos, tarjetas (Luhn), RUT chileno, correos y teléfonos, según la autorización del agente | `src/dlp.ts` |
 | Guardrails antes y después de cada llamada, incluida la detección de instrucciones escondidas en los datos | `src/guardrails.ts` |
@@ -24,7 +26,7 @@ Lo que está construido tiene pruebas automáticas (43 en este repositorio) y CI
 
 ## A medias
 
-- **Bóveda.** Las credenciales son variables de entorno del servidor, no una bóveda administrada. Todos los agentes usan la cuenta de la empresa en cada sistema, no la cuenta personal de cada empleado.
+- **Bóveda.** Con Vault u OpenBao las credenciales son temporales; sin ellos, siguen siendo variables de entorno. Los agentes usan la cuenta de la empresa en cada sistema, no la cuenta personal de cada empleado; el token de delegación le dice al sistema por quién actúan, pero el sistema tiene que leerlo. Vault se probó con un servidor simulado, no con una instalación real.
 - **Firmas.** Solo se firma desde la consola web.
 - **Desvinculación.** Se marca a la persona como inactiva en la consola; no hay integración con el proveedor de identidad.
 - **Bitácora hacia un SIEM.** Con `audit.stdout: true` el gateway emite JSON por línea, pero no la envía por sí mismo.

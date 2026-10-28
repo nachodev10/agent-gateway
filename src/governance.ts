@@ -1,6 +1,6 @@
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { AuditLog } from "./audit.js";
-import { type GatewayConfig, getTier } from "./config.js";
+import { type GatewayConfig, getConnector, getTier } from "./config.js";
 import type { CatalogTool, ConnectorHub } from "./connectors.js";
 import { type Dlp, totalRedactions } from "./dlp.js";
 import { type Logger, errorMessage } from "./log.js";
@@ -10,6 +10,7 @@ import type { Decision, PolicyEngine } from "./policy.js";
 import type { Store } from "./store.js";
 import type { Agent, ApprovalRequest, ApproverKind, Person } from "./types.js";
 import { addMinutes, canonicalJson, sha256, sleep, truncateJson } from "./util.js";
+import type { CredentialUse } from "./vault.js";
 
 /**
  * Pipeline de gobierno. Toda llamada de un agente pasa por aquí, venga por MCP o por REST:
@@ -66,6 +67,12 @@ function resultText(result: CallToolResult): string {
 }
 
 const findingsDetail = (findings: GuardrailFinding[]) => (findings.length ? { guardrails: findings } : {});
+
+/** Una entrada por credencial distinta: un conector http puede hacer más de un request por llamada. */
+function credentialsDetail(uses: CredentialUse[]) {
+  const unique = [...new Map(uses.map((u) => [`${u.path}#${u.field}`, u])).values()];
+  return unique.length ? { credentials: unique } : {};
+}
 
 export class Governance {
   private readonly clock: () => Date;
@@ -162,7 +169,7 @@ export class Governance {
       return { status: "denied", reason: blockedBefore.reason, ruleId: blockedBefore.id };
     }
 
-    let approvalId: string | null = null;
+    let approval: ApprovalRequest | null = null;
     if (decision.effect === "require_approval") {
       const gate = await this.approvalGate(ctx, tool, args, decision, startedAt);
       if (gate.status !== "approved") {
@@ -180,18 +187,36 @@ export class Governance {
           ? { status: "denied", reason: gate.reason, ruleId: decision.ruleId }
           : { status: "pending_approval", approvalId: gate.approval.id, approver: decision.approver, reason: gate.reason };
       }
-      approvalId = gate.approval.id;
+      approval = gate.approval;
     }
+    const approvalId = approval?.id ?? null;
+
+    // El conector recibe el pasaporte (quién es el agente) y un token de delegación para esta acción:
+    // a nombre de qué persona actúa, sobre qué herramienta, con qué argumentos y con qué firma humana.
+    const callAt = this.clock();
+    const passport = this.deps.passport.forConnector(ctx.agent, ctx.owner, callAt);
+    const delegation = this.deps.passport.delegate(
+      { agent: ctx.agent, owner: ctx.owner, connectorId: tool.connectorId, tool: tool.toolName, access: tool.access, argsHash: sha256(canonicalJson(args)), approval },
+      callAt,
+    );
+    const delegationHeader = getConnector(config, tool.connectorId)?.delegationHeader;
 
     let upstream: CallToolResult;
+    let credentials: CredentialUse[] = [];
     try {
-      // El conector recibe el pasaporte firmado: sabe qué agente actúa y quién responde por él.
-      const passport = this.deps.passport.forConnector(ctx.agent, ctx.owner, this.clock());
-      upstream = await hub.call(tool, args, { "agent-gateway/passport": passport });
+      const called = await hub.call(tool, args, {
+        meta: { "agent-gateway/passport": passport, "agent-gateway/delegation": delegation.token },
+        headers: delegationHeader ? { [delegationHeader]: delegation.token } : {},
+      });
+      upstream = called.result;
+      credentials = called.credentials;
     } catch (error) {
       const reason = `Error del conector ${tool.connectorId}: ${errorMessage(error)}`;
       this.deps.log.warn(reason, { agent: ctx.agent.id, tool: name });
-      audit.append({ ...base, type: "tool.call", decision: "error", reason, detail: detail({ kind: "upstream", approvalId }) }, this.clock());
+      audit.append(
+        { ...base, type: "tool.call", decision: "error", reason, detail: detail({ kind: "upstream", approvalId, delegation: delegation.claims.jti }) },
+        this.clock(),
+      );
       return { status: "error", reason };
     }
 
@@ -211,7 +236,15 @@ export class Governance {
           type: "tool.call",
           decision: "deny",
           reason,
-          detail: detail({ kind: "guardrail", approvalId, executed: true, ...findingsDetail(findings), ...observed }),
+          detail: detail({
+            kind: "guardrail",
+            approvalId,
+            executed: true,
+            delegation: delegation.claims.jti,
+            ...credentialsDetail(credentials),
+            ...findingsDetail(findings),
+            ...observed,
+          }),
         },
         this.clock(),
       );
@@ -236,6 +269,8 @@ export class Governance {
           durationMs: finishedAt.getTime() - startedAt.getTime(),
           redactions: counts,
           upstreamError: upstream.isError === true,
+          delegation: delegation.claims.jti,
+          ...credentialsDetail(credentials),
           ...findingsDetail(findings),
           ...observed,
         }),

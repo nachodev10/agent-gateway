@@ -13,6 +13,8 @@ Agente Pass aplica la misma idea a los agentes: la empresa no controla el agente
 | Un gateway como punto único de control | Instalar software de control en el equipo del empleado | El equipo es personal: invasivo, frágil y difícil de justificar. El gateway gobierna solo el espacio de la empresa. |
 | MCP como protocolo principal | Integraciones a medida por runtime | Claude Code, Cursor, VS Code y otros ya hablan MCP. Un endpoint sirve a todos. REST cubre el resto. |
 | Credenciales solo en el gateway | Entregar llaves de API a cada agente | Un agente comprometido no puede filtrar lo que no tiene. Revocar al agente no exige rotar credenciales de sistemas. |
+| Credenciales temporales desde Vault u OpenBao | Claves fijas en variables de entorno | Una credencial que dura minutos vale poco si se filtra, y leer y escribir pueden usar credenciales distintas. |
+| Token de delegación por llamada (RFC 8693) | Que el sistema solo vea la cuenta de servicio del gateway | Cada sistema sabe por qué persona actúa el agente, en qué acción y con qué firma, y lo puede verificar sin llamar al gateway. |
 | Tokens opacos verificados en cada request | JWT autocontenidos | Suspender o desvincular tiene efecto inmediato, sin listas de revocación. |
 | MCP sin sesión (un servidor por request) | Sesiones de larga duración | La identidad y los permisos se reevalúan en cada llamada; escala horizontalmente. |
 | Permiso efectivo por intersección | Permisos acumulativos | El agente nunca supera lo autorizado: conectores ∩ clasificación ∩ reglas ∩ nivel. |
@@ -125,6 +127,18 @@ El gateway emite un JWT firmado con ES256 que describe al agente, su organizaci�
 
 Es deliberadamente de vida corta: la revocación se aplica en el gateway en cada request, y el pasaporte solo informa. Esta es la alternativa sin blockchain a "una llave por agente": identidad criptográfica verificable, revocable al instante y sin datos personales en un registro público.
 
+## Delegación por llamada
+
+El pasaporte dice quién es el agente. El token de delegación dice qué está haciendo ahora y por quién. Sigue la forma de delegación de OAuth (RFC 8693, sección 4.1): `sub` es la persona y `act` es el agente que actúa por ella. Además lleva la audiencia (`aud`, el conector), la herramienta, el tipo de acceso, el hash de los argumentos y, si hubo firma humana, la aprobación y quién la dio. Dura dos minutos y su `jti` queda en la bitácora.
+
+Con esto, un sistema que no confía en el gateway como cuenta de servicio genérica puede exigir el token y registrar a la persona real detrás de cada cambio, como pide la responsabilidad demostrada de la Ley 21.719.
+
+## Credenciales temporales
+
+Las credenciales de los conectores pueden venir de HashiCorp Vault u OpenBao. El gateway se autentica con AppRole (o un token), lee el secreto justo antes de la llamada y lo reutiliza mientras dura su arriendo, menos un margen (`renewBeforeSeconds`). Con secretos dinámicos, Vault emite una credencial única por arriendo y la revoca sola al vencer. La ruta acepta `{access}`, para usar un rol de solo lectura en lecturas y otro en escrituras.
+
+En conectores http, un `fetch` propio del conector agrega las credenciales y la cabecera de delegación en cada request, con el contexto de la llamada en curso (`AsyncLocalStorage`). En conectores stdio las credenciales se entregan como variables de entorno al lanzar el proceso.
+
 ## Guardrails
 
 La política decide *si* un agente puede usar una herramienta; los guardrails revisan *qué contenido* va y viene. El diseño toma la idea de hooks del gateway de modelos de Portkey (chequeos antes y después, veredicto, bloquear u observar, validador externo por webhook) y la aplica a herramientas:
@@ -153,6 +167,7 @@ Los conectores se clasifican como `public`, `internal`, `confidential` o `restri
 | Exfiltración de datos al proveedor de modelo | Techo de clasificación por proveedor, DLP por autorización | Gateway de modelos corporativo |
 | Agente sondeando permisos | Herramientas ocultas, bloqueos auditados, suspensión automática | Alertas en tiempo real |
 | Robo del token del agente | Hash en reposo, vencimiento, rotación, suspensión inmediata; DPoP obligatorio para terceros | DPoP para clientes MCP de empleados, lista de IP permitidas |
+| Filtración de una credencial de sistema | Credenciales temporales desde Vault, distintas para leer y escribir; nunca llegan al agente | Revocar los arriendos vigentes al suspender un agente |
 | Tercero que pasa el token a otro agente | Token ligado a la clave del tercero; pasaporte con `cnf.jkt` | Atestación del entorno de ejecución |
 | Responsable que deja la empresa | Desvinculación suspende y revoca | SCIM automático |
 | Abuso del propio responsable | Nadie aprueba su propio agente; pagos con jefatura; bitácora | Revisión periódica por seguridad |

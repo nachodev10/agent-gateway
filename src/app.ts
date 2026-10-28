@@ -19,6 +19,7 @@ import { PassportIssuer } from "./passport.js";
 import { PolicyEngine } from "./policy.js";
 import { HttpError, type Services } from "./services.js";
 import { Store } from "./store.js";
+import { CredentialBroker } from "./vault.js";
 
 export interface GatewayOptions {
   config: GatewayConfig;
@@ -31,7 +32,7 @@ export interface GatewayOptions {
   clock?: () => Date;
   /** Clave privada (JWK) para firmar pasaportes; si falta, se genera y se guarda en la base. */
   signingJwk?: string;
-  /** fetch para los guardrails webhook (inyectable en pruebas). */
+  /** fetch para los guardrails webhook y Vault (inyectable en pruebas). */
   fetch?: typeof fetch;
 }
 
@@ -58,7 +59,8 @@ export async function createGateway(options: GatewayOptions): Promise<Gateway> {
   const audit = new AuditLog(store, { stdout: config.audit.stdout });
   const policy = new PolicyEngine(config);
   const dlp = new Dlp(config.dlp);
-  const hub = new ConnectorHub(config, log);
+  const credentials = CredentialBroker.fromConfig(config, options.fetch ?? fetch, clock);
+  const hub = new ConnectorHub(config, log, credentials);
   const passport = new PassportIssuer(config, store, clock(), options.signingJwk);
   const dpop = new DpopVerifier();
   const guardrails = new GuardrailEngine(config, policy, options.fetch);
