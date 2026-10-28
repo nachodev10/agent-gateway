@@ -1,8 +1,8 @@
-# Agent Gateway
+# Agente Pass
 
 **BYOA responsable: invita a los agentes de IA de tu equipo a trabajar, bajo tus reglas.**
 
-Tus empleados ya usan agentes de IA: Claude Code, Cursor, agentes autohospedados en su Mac. Y cada vez más proveedores, consultoras y clientes quieren que sus propios agentes trabajen con tu empresa. Prohibirlos no los elimina, los vuelve invisibles. Agent Gateway hace lo contrario: los invita a trabajar con los sistemas de la empresa, gobernados, monitoreados y con **una persona responsable por cada agente**.
+Tus empleados ya usan agentes de IA: Claude Code, Cursor, agentes autohospedados en su Mac. Y cada vez más proveedores, consultoras y clientes quieren que sus propios agentes trabajen con tu empresa. Prohibirlos no los elimina, los vuelve invisibles. Agente Pass hace lo contrario: los invita a trabajar con los sistemas de la empresa, gobernados, monitoreados y con **una persona responsable por cada agente**.
 
 > **BYOA responsable** (Bring Your Own Agent): el empleado trae su agente; la empresa pone las reglas; un humano responde por él.
 
@@ -15,7 +15,7 @@ flowchart LR
   subgraph EMP["Equipo del empleado"]
     A["Agente personal<br/>Claude Code · Cursor · propio"]
   end
-  subgraph GW["Agent Gateway"]
+  subgraph GW["Agente Pass"]
     direction TB
     I["Identidad<br/>agente → responsable"] --> P["Políticas<br/>nivel · reglas · horario"]
     P --> H["Aprobación humana"]

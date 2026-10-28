@@ -126,7 +126,7 @@ console.log(
 );
 
 console.log(`
-=== Agent Gateway de ${config.organization.name} en marcha ===
+=== Agente Pass de ${config.organization.name} en marcha ===
 
 Consola: ${server.url}
 

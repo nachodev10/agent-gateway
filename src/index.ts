@@ -21,7 +21,7 @@ async function main() {
   const gateway = await createGateway({ config, adminToken: resolveAdminToken(), logger: log, signingJwk: process.env.AGW_SIGNING_KEY });
   gateway.hub.startHealthLoop();
   const server = await gateway.listen(Number(process.env.PORT ?? config.server.port), process.env.HOST ?? config.server.host);
-  log.info(`Agent Gateway de ${config.organization.name} escuchando`, { consola: server.url, mcp: `${server.url}/mcp` });
+  log.info(`Agente Pass de ${config.organization.name} escuchando`, { consola: server.url, mcp: `${server.url}/mcp` });
 
   const shutdown = async () => {
     log.info("Cerrando…");

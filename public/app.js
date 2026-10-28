@@ -1,4 +1,4 @@
-// Consola del Agent Gateway: monitoreo, aprobaciones humanas y ciclo de vida de los agentes.
+// Consola de Agente Pass: monitoreo, aprobaciones humanas y ciclo de vida de los agentes.
 // Sin dependencias ni paso de build. Todo el contenido dinámico se inserta como texto (nunca como HTML).
 
 const LABELS = {
@@ -152,7 +152,7 @@ function renderLogin(message) {
       el(
         "section",
         { class: "card" },
-        el("h2", {}, "Agent Gateway · Consola"),
+        el("h2", {}, "Agente Pass · Consola"),
         el(
           "div",
           { class: "card-body" },
@@ -196,7 +196,7 @@ function renderShell() {
           "div",
           { class: "brand" },
           el("div", { class: "logo", "aria-hidden": "true" }, "AG"),
-          el("div", {}, el("h1", {}, "Agent Gateway"), el("small", {}, `${state.meta.organization} · BYOA responsable`)),
+          el("div", {}, el("h1", {}, "Agente Pass"), el("small", {}, `${state.meta.organization} · BYOA responsable`)),
         ),
         el("div", { class: "who" }, el("span", {}, who), el("button", { onclick: () => logout() }, "Salir")),
       ),

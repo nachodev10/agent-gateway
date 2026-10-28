@@ -15,7 +15,7 @@ export function buildInstructions(ctx: AgentContext, config: GatewayConfig): str
   const tier = getTier(config, ctx.agent.tier);
   const clearance = ctx.agent.clearance ? CLASSIFICATION_LABEL[ctx.agent.clearance] : "públicos";
   return [
-    `Estás conectado al Agent Gateway de ${config.organization.name}.`,
+    `Estás conectado a Agente Pass de ${config.organization.name}.`,
     ctx.agent.manifest.origin === "third_party"
       ? `Eres un agente de ${ctx.agent.manifest.organization ?? "una organización externa"} trabajando para la empresa. ` +
         `Tu responsable interno es ${ctx.owner.name} <${ctx.owner.email}>, quien responde por tus acciones.`
@@ -61,7 +61,7 @@ export function outcomeToResult(outcome: CallOutcome, organization: string): Cal
 
 export function createAgentMcpServer(governance: Governance, ctx: AgentContext, config: GatewayConfig): Server {
   const server = new Server(
-    { name: "agent-gateway", title: `Agent Gateway · ${config.organization.name}`, version: VERSION },
+    { name: "agent-gateway", title: `Agente Pass · ${config.organization.name}`, version: VERSION },
     { capabilities: { tools: {} }, instructions: buildInstructions(ctx, config) },
   );
   server.setRequestHandler(ListToolsRequestSchema, async () => ({

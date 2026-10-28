@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Agent Gateway · configuración y políticas (políticas como código)
+# Agente Pass · configuración y políticas (políticas como código)
 #
 # Este archivo se versiona en git: cada cambio de política queda revisado y trazado.
 # Los secretos nunca van aquí; se referencian como ${VARIABLE} y se leen del entorno.

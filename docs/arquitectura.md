@@ -4,7 +4,7 @@
 
 Los empleados adoptan agentes de IA más rápido de lo que la empresa los puede evaluar. Cuando se prohíben, siguen usándose con cuentas personales y copiando datos a mano: la empresa pierde visibilidad y control. El modelo BYOD resolvió algo parecido con los teléfonos personales: no se prohibió el dispositivo, se separó lo corporativo y se gobernó ese espacio.
 
-Agent Gateway aplica la misma idea a los agentes: la empresa no controla el agente del empleado, controla **lo que el agente puede tocar** de la empresa, y exige que cada agente tenga un **responsable humano**.
+Agente Pass aplica la misma idea a los agentes: la empresa no controla el agente del empleado, controla **lo que el agente puede tocar** de la empresa, y exige que cada agente tenga un **responsable humano**.
 
 ## Decisiones clave
 
@@ -134,7 +134,7 @@ La política decide *si* un agente puede usar una herramienta; los guardrails re
 
 ## Relación con un gateway de modelos
 
-Agent Gateway gobierna lo que el agente **toca** (herramientas y datos). Un gateway de modelos como Portkey gobierna **con qué modelo** piensa (ruteo, reintentos, costos). Son capas complementarias: para datos `restricted`, la recomendación es exigir que el agente use el modelo corporativo detrás de un gateway de modelos, en lugar de reimplementar ese ruteo aquí.
+Agente Pass gobierna lo que el agente **toca** (herramientas y datos). Un gateway de modelos como Portkey gobierna **con qué modelo** piensa (ruteo, reintentos, costos). Son capas complementarias: para datos `restricted`, la recomendación es exigir que el agente use el modelo corporativo detrás de un gateway de modelos, en lugar de reimplementar ese ruteo aquí.
 
 ## Clasificación de datos y proveedores de modelo
 

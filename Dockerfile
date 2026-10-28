@@ -1,4 +1,4 @@
-# Imagen de producción del Agent Gateway.
+# Imagen de producción de Agente Pass.
 FROM node:22-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./

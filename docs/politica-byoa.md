@@ -13,7 +13,7 @@ Aplica a todo agente de IA que un trabajador, contratista o colaborador use para
 ## 3. Principios
 
 1. Todo agente tiene una persona responsable que responde por sus acciones.
-2. Los agentes acceden a los sistemas de la empresa solo a través del Agent Gateway.
+2. Los agentes acceden a los sistemas de la empresa solo a través de Agente Pass.
 3. Cada agente recibe el mínimo acceso necesario y gana autonomía con un buen historial.
 4. Las acciones consecuentes o irreversibles requieren aprobación humana.
 5. Todo lo que un agente hace en sistemas de la empresa queda registrado.
@@ -66,7 +66,7 @@ Esta política se revisa al menos una vez al año o cuando cambien la regulació
 
 ## Acuerdo de uso responsable
 
-Al inscribir mi agente en el Agent Gateway declaro que:
+Al inscribir mi agente en Agente Pass declaro que:
 
 1. Soy la persona responsable de este agente y respondo por sus acciones en los sistemas de la empresa.
 2. La información que declaré sobre el agente es verdadera y la mantendré actualizada.

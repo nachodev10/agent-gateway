@@ -1,5 +1,5 @@
 /**
- * Tipos de dominio del Agent Gateway.
+ * Tipos de dominio de Agente Pass.
  *
  * Vocabulario:
  * - Persona: empleado humano. Todo agente tiene una persona responsable (owner).
