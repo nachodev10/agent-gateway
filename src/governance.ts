@@ -309,7 +309,7 @@ export class Governance {
       now,
     );
     this.deps.log.warn(reason, { agent: ctx.agent.id, ...source });
-    return `${cause}. El agente quedó suspendido; su jefatura o seguridad debe reactivarlo.`;
+    return `${cause.replace(/\.+$/, "")}. El agente quedó suspendido; su jefatura o seguridad debe reactivarlo.`;
   }
 
   /** Un agente que acumula denegaciones (sondeo de permisos, bucles, inyección de prompts) se suspende solo. */

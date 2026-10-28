@@ -530,15 +530,17 @@ export function consoleApi(s: Services): Router {
       const visible = visibleAgents(actor).map((a) => a.id);
       agentIds = agentId ? visible.filter((id) => id === agentId) : visible;
     }
-    res.json({
-      events: s.store.queryAudit({
-        agentIds,
-        type: typeof q.type === "string" ? q.type : undefined,
-        decision: typeof q.decision === "string" ? q.decision : undefined,
-        beforeSeq: q.before ? Number(q.before) : undefined,
-        limit: q.limit ? Number(q.limit) : 50,
-      }),
+    const events = s.store.queryAudit({
+      agentIds,
+      type: typeof q.type === "string" ? q.type : undefined,
+      decision: typeof q.decision === "string" ? q.decision : undefined,
+      beforeSeq: q.before ? Number(q.before) : undefined,
+      limit: q.limit ? Number(q.limit) : 50,
     });
+    // Nombre legible de quien actuó, para la consola; la bitácora guarda solo el identificador.
+    const actorName = (label: string) =>
+      label.startsWith("person:") ? (s.store.getPerson(label.slice("person:".length))?.name ?? label) : label === "admin" ? "Administración" : label.startsWith("system:") ? "Sistema" : null;
+    res.json({ events: events.map((e) => ({ ...e, actorName: actorName(e.actor) })) });
   });
 
   r.get("/audit/verify", (_req, res) => {

@@ -354,7 +354,7 @@ function renderFeed() {
           "div",
           { class: "line" },
           e.decision ? badge(LABELS.decision[e.decision] || e.decision, TONE[e.decision]) : badge(LABELS.event[e.type] || e.type),
-          el("strong", {}, e.agentId ? names.get(e.agentId) || e.agentId : e.actor),
+          el("strong", {}, e.agentId ? names.get(e.agentId) || e.agentId : e.actorName || e.actor),
           e.tool ? el("code", {}, e.tool) : null,
           el("span", { class: "muted", title: fmtDate(e.ts) }, relative(e.ts)),
         ),

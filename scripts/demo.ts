@@ -131,6 +131,14 @@ console.log(
     `nivel ${claims.authorization.tier}, datos hasta ${claims.authorization.clearance}`,
 );
 
+const mail = await acmeFetch(`${server.url}/v1/tools/crm_enviar_correo/call`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ arguments: { para: "maria.gonzalez@andesfoods.example", asunto: "Oferta", cuerpo: "Les escribimos de parte de Empresa Demo" } }),
+});
+const mailOutcome = (await mail.json()) as { reason: string };
+console.log(`\n→ Intenta enviar un correo a nombre de la empresa (prohibido para terceros): HTTP ${mail.status}\n  ${mailOutcome.reason}`);
+
 console.log("\n=== Agentes ya conectados a las cuentas de la empresa (Google Workspace y Microsoft 365 simulados) ===");
 const { summary } = await api("POST", "/api/discovery/scan", sofia.token);
 const PROVIDER: Record<string, string> = { google: "Google Workspace", microsoft: "Microsoft 365" };
@@ -162,7 +170,8 @@ Tokens de consola (pégalos al entrar):
 Conecta tu propio Claude Code como si fueras el agente de Ignacio:
   ${issued.claudeCode}
 
-Prueba: entra como Camila, aprueba el pago y la solicitud de Pedro, o suspende el agente.
+Prueba: entra como Camila, aprueba el pago y la solicitud de Pedro; como Sofía, revisa los agentes
+descubiertos y reactiva el de Acme; como Ignacio, inscribe el ChatGPT al que Sofía lo invitó.
 Ctrl+C para salir.`);
 
 const shutdown = async () => {
