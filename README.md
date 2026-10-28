@@ -199,6 +199,18 @@ connectors:
 - **Ciclo de vida**: tokens que vencen y rotan, recertificación periódica, cortacircuitos, desvinculación que suspende agentes y revoca tokens.
 - **Consola web** en español para monitorear, aprobar, suspender e inscribir agentes.
 
+## Demo en video
+
+Recorrido de 72 segundos por la consola: Camila (jefatura) firma un pago que propuso un agente, Sofía (seguridad) revisa los agentes ya conectados a Google Workspace y Microsoft 365 y reactiva al agente de un proveedor que quedó suspendido, e Ignacio (empleado) inscribe el ChatGPT al que lo invitaron. Google y Microsoft son simulados; el resto es el producto funcionando.
+
+[Ver el video](docs/demo/agente-pass-demo.mp4) · [Lo que vive el agente en la terminal](docs/demo/terminal.txt)
+
+| Firma de la jefatura | Agentes ya conectados | Invitación a inscribir |
+|---|---|---|
+| ![Firma de la jefatura](docs/demo/1-firma.png) | ![Agentes descubiertos](docs/demo/2-descubrimiento.png) | ![Inscripción desde la invitación](docs/demo/3-inscripcion.png) |
+
+Para verla en vivo: `npm install` y `npm run demo`.
+
 ## Inicio rápido
 
 Requiere Node.js 22.13 o superior.

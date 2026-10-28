@@ -4,3 +4,4 @@ data
 coverage
 .git
 *.db*
+docs
