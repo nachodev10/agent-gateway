@@ -2,7 +2,7 @@
 
 Qué está construido y probado, qué está a medias y qué falta. Revisado el 28 de octubre de 2026 contra el código de este repositorio y el de Soul.
 
-Lo que está construido tiene pruebas automáticas (48 en este repositorio) y CI en verde. Además, la herramienta real de Claude Code (`claude mcp add` y `claude mcp list`) se conectó al gateway por MCP.
+Lo que está construido tiene pruebas automáticas (58 en este repositorio) y CI en verde. Además, la herramienta real de Claude Code (`claude mcp add` y `claude mcp list`) se conectó al gateway por MCP.
 
 ## Construido y probado
 
@@ -19,6 +19,8 @@ Lo que está construido tiene pruebas automáticas (48 en este repositorio) y CI
 | Guardrails antes y después de cada llamada, incluida la detección de instrucciones escondidas en los datos | `src/guardrails.ts` |
 | Bitácora encadenada por hash, con verificación | `src/audit.ts` |
 | Cortacircuitos: un agente con muchos bloqueos se suspende solo | `src/governance.ts` |
+| Suspensión inmediata en el primer intento, con reglas y guardrails `suspend: true` | `src/governance.ts`, `src/policy.ts` |
+| Descubrimiento de agentes y automatizaciones con acceso OAuth a Google Workspace y Microsoft 365, con invitación a inscribirse desde la consola | `src/discovery.ts`, `public/app.js` |
 | Desvincular a una persona suspende a sus agentes y revoca sus tokens | `src/api.ts` |
 | Agentes de terceros patrocinados, con token ligado a su clave (DPoP, RFC 9449), aprobación de Seguridad y revisión más frecuente | `src/dpop.ts`, `src/api.ts` |
 | Endpoint MCP sin sesión, REST y consola web | `src/mcp.ts`, `src/api.ts`, `public/` |
@@ -31,6 +33,7 @@ Lo que está construido tiene pruebas automáticas (48 en este repositorio) y CI
 - **Desvinculación.** Se marca a la persona como inactiva en la consola; no hay integración con el proveedor de identidad.
 - **Bitácora hacia un SIEM.** Con `audit.stdout: true` el gateway emite JSON por línea, pero no la envía por sí mismo.
 - **Agentes de terceros.** Necesitan un programa que firme cada llamada con su clave (ver `examples/third-party-agent.ts`). Claude Code y Cursor no lo hacen todavía.
+- **Descubrimiento.** Se probó con APIs de Google y Microsoft simuladas, no con un dominio real. Solo ve accesos OAuth: no detecta agentes que usan una contraseña guardada o un navegador, ni permisos de aplicación (solo los delegados) en Microsoft.
 - **Clientes probados.** Solo Claude Code. Otros clientes MCP deberían funcionar, pero no se han probado.
 
 ## Falta

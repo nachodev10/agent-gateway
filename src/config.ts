@@ -76,7 +76,9 @@ const rule = z.strictObject({
   message: z.string().optional(),
   /** observe: la regla se evalúa y se registra, pero no se aplica. Útil para probar reglas nuevas sin cortar el trabajo. */
   mode: z.enum(["enforce", "observe"]).default("enforce"),
-});
+  /** Suspende al agente en el primer intento: para lo que ningún agente debería intentar nunca. */
+  suspend: z.boolean().default(false),
+}).refine((r) => !r.suspend || r.effect === "deny", { message: "'suspend' solo aplica a reglas con effect: deny", path: ["suspend"] });
 
 const guardrailCheck = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("prompt_injection") }),
@@ -110,7 +112,9 @@ const guardrail = z.strictObject({
   /** Si el chequeo falla (p. ej. webhook caído): allow solo registra; deny aplica la acción. */
   onError: z.enum(["allow", "deny"]).default("allow"),
   message: z.string().optional(),
-});
+  /** Suspende al agente cuando el chequeo lo detecta (no cuando el chequeo falla). */
+  suspend: z.boolean().default(false),
+}).refine((g) => !g.suspend || g.action === "deny", { message: "'suspend' solo aplica a guardrails con action: deny", path: ["suspend"] });
 
 const tier = z.strictObject({
   level: z.number().int().min(0),
@@ -295,6 +299,31 @@ export const configSchema = z
           .prefault({}),
       })
       .prefault({}),
+    /** Descubrir agentes ya conectados a las cuentas de la empresa, para invitarlos a inscribirse. */
+    discovery: z
+      .strictObject({
+        /** Cada cuántos minutos escanear; 0 = solo cuando seguridad lo pide. */
+        intervalMinutes: z.number().int().min(0).default(0),
+        /** Nombres de apps que también cuentan como agentes de IA, además del catálogo incluido. */
+        agentNames: z.array(z.string().min(2)).default([]),
+        google: z
+          .strictObject({
+            /** JSON de una cuenta de servicio con delegación de dominio. */
+            serviceAccount: z.string().min(1),
+            /** Administrador a nombre de quien consulta la cuenta de servicio. */
+            adminEmail: z.email(),
+            customer: z.string().default("my_customer"),
+          })
+          .optional(),
+        microsoft: z
+          .strictObject({
+            tenantId: z.string().min(1),
+            clientId: z.string().min(1),
+            clientSecret: z.string().min(1),
+          })
+          .optional(),
+      })
+      .prefault({}),
     connectors: z.array(connector).default([]),
     rules: z.array(rule).default([]),
     guardrails: z.array(guardrail).default([]),
@@ -353,7 +382,7 @@ function interpolateEnv(value: unknown, path: string): unknown {
 export function parseConfig(raw: unknown): GatewayConfig {
   const input = raw && typeof raw === "object" ? { ...(raw as Record<string, unknown>) } : raw;
   // Solo las secciones que llevan secretos admiten ${VARIABLE}.
-  for (const section of ["connectors", "vault"]) {
+  for (const section of ["connectors", "vault", "discovery"]) {
     if (input && typeof input === "object" && section in input) {
       (input as Record<string, unknown>)[section] = interpolateEnv((input as Record<string, unknown>)[section], section);
     }

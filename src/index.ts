@@ -20,6 +20,7 @@ async function main() {
   const config = loadConfig(process.env.AGW_CONFIG ?? "config/gateway.yaml");
   const gateway = await createGateway({ config, adminToken: resolveAdminToken(), logger: log, signingJwk: process.env.AGW_SIGNING_KEY });
   gateway.hub.startHealthLoop();
+  gateway.discovery.startSchedule();
   const server = await gateway.listen(Number(process.env.PORT ?? config.server.port), process.env.HOST ?? config.server.host);
   log.info(`Agente Pass de ${config.organization.name} escuchando`, { consola: server.url, mcp: `${server.url}/mcp` });
 

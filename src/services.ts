@@ -1,6 +1,7 @@
 import type { AuditLog } from "./audit.js";
 import type { GatewayConfig } from "./config.js";
 import type { ConnectorHub } from "./connectors.js";
+import type { Discovery } from "./discovery.js";
 import type { Dlp } from "./dlp.js";
 import type { DpopVerifier } from "./dpop.js";
 import type { Governance } from "./governance.js";
@@ -19,6 +20,7 @@ export interface Services {
   governance: Governance;
   passport: PassportIssuer;
   dpop: DpopVerifier;
+  discovery: Discovery;
   log: Logger;
   clock: () => Date;
   adminToken: string;

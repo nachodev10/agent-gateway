@@ -8,6 +8,7 @@ import { rmSync } from "node:fs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { createDemoClouds } from "../examples/demo-clouds.js";
 import { createGateway } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 import { createDpopKey, dpopFetch } from "../src/dpop.js";
@@ -22,7 +23,12 @@ config.storage.path = DB;
 config.approvals.waitSeconds = 0;
 for (const suffix of ["", "-wal", "-shm"]) rmSync(`${DB}${suffix}`, { force: true });
 
-const gateway = await createGateway({ config, adminToken: ADMIN_TOKEN });
+// Google Workspace y Microsoft 365 simulados, con agentes que los empleados ya conectaron a sus cuentas.
+const clouds = createDemoClouds(fetch);
+config.discovery.google = { serviceAccount: clouds.serviceAccount, adminEmail: "ti@empresa-demo.example", customer: "my_customer" };
+config.discovery.microsoft = { tenantId: "empresa-demo", clientId: "agente-pass", clientSecret: "secreto-ms" };
+
+const gateway = await createGateway({ config, adminToken: ADMIN_TOKEN, fetch: clouds.fetch });
 const server = await gateway.listen();
 
 async function api(method: string, path: string, token: string, body?: unknown) {
@@ -124,6 +130,23 @@ console.log(
   `\n→ Pasaporte firmado por el gateway: ${claims.agent.organization}, responsable ${claims.responsible.name}, ` +
     `nivel ${claims.authorization.tier}, datos hasta ${claims.authorization.clearance}`,
 );
+
+console.log("\n=== Agentes ya conectados a las cuentas de la empresa (Google Workspace y Microsoft 365 simulados) ===");
+const { summary } = await api("POST", "/api/discovery/scan", sofia.token);
+const PROVIDER: Record<string, string> = { google: "Google Workspace", microsoft: "Microsoft 365" };
+const RISK: Record<string, string> = { high: "alto", medium: "medio", low: "bajo" };
+for (const [provider, r] of Object.entries(summary.providers) as [string, { agents: number; new: number }][]) {
+  console.log(`\n→ ${PROVIDER[provider]}: ${r.agents} agentes o automatizaciones con acceso`);
+}
+const { apps } = await api("GET", "/api/discovery", sofia.token);
+for (const d of apps as { id: string; appName: string; userEmail: string; person: string | null; risk: string; kind: string; provider: string }[]) {
+  console.log(`  - ${d.appName} (${PROVIDER[d.provider]}) · ${d.person ?? (d.userEmail === "*" ? "toda la organización" : d.userEmail)} · riesgo ${RISK[d.risk]}`);
+}
+const chatgpt = (apps as { id: string; appName: string; person: string | null }[]).find((d) => d.appName === "ChatGPT" && d.person === ignacio.name);
+if (chatgpt) {
+  await api("POST", `/api/discovery/${chatgpt.id}/invite`, sofia.token, { note: "Inscríbelo para seguir usándolo con tu correo" });
+  console.log(`\n→ Sofía invitó a ${ignacio.name} a inscribir su ChatGPT: lo verá en su consola.`);
+}
 
 console.log(`
 === Agente Pass de ${config.organization.name} en marcha ===

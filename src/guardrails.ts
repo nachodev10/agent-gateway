@@ -22,6 +22,8 @@ export interface GuardrailFinding {
   reason: string;
   /** El chequeo falló al ejecutarse (p. ej. webhook caído) y se aplicó onError. */
   errored?: boolean;
+  /** Detectado por un guardrail que suspende al agente. */
+  suspend?: boolean;
 }
 
 export interface GuardrailInput {
@@ -74,6 +76,8 @@ export class GuardrailEngine {
       action: errored && g.onError === "allow" ? "flag" : g.action,
       reason: g.message ?? `${g.description ?? g.id}: ${reason}`,
       ...(errored ? { errored } : {}),
+      // Un validador caído nunca suspende a un agente: solo una detección real.
+      ...(g.suspend && !errored ? { suspend: true } : {}),
     });
     try {
       switch (g.check.type) {

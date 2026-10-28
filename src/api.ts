@@ -5,7 +5,7 @@ import { getTier } from "./config.js";
 import { type Jwk, importPublicJwk, jwkThumbprint } from "./jose.js";
 import { HttpError, type Services } from "./services.js";
 import { bearerToken, generateToken, hashToken, tokenPrefix } from "./tokens.js";
-import { AGENT_ORIGINS, type Agent, type ApprovalRequest, type Person, minClassification } from "./types.js";
+import { AGENT_ORIGINS, type Agent, type ApprovalRequest, type DiscoveredApp, type Person, minClassification } from "./types.js";
 import { addDays, addMinutes } from "./util.js";
 
 /**
@@ -46,6 +46,8 @@ const agentBody = z.strictObject({
   device: z.string().max(120).nullish(),
   requestedConnectors: z.array(z.string()).min(1),
   acceptAgreement: z.literal(true, { error: "Debes aceptar el acuerdo de uso responsable" }),
+  /** Acceso descubierto que esta inscripción regulariza. */
+  discoveryId: z.string().optional(),
 });
 
 const approveBody = z.strictObject({
@@ -269,6 +271,11 @@ export function consoleApi(s: Services): Router {
     }
     const unknown = body.requestedConnectors.filter((id) => !s.config.connectors.some((c) => c.id === id));
     if (unknown.length) throw new HttpError(400, `Conectores inexistentes: ${unknown.join(", ")}`, "validation");
+    const discovered = body.discoveryId ? s.store.getDiscovered(body.discoveryId) : undefined;
+    if (body.discoveryId && (!discovered || discovered.personId !== owner.id)) throw new HttpError(404, "Acceso descubierto no encontrado", "not_found");
+    if (discovered && (discovered.status === "enrolled" || discovered.status === "dismissed")) {
+      throw new HttpError(409, "Ese acceso ya se inscribió o se descartó", "conflict");
+    }
 
     const agent = s.store.createAgent(
       {
@@ -294,10 +301,11 @@ export function consoleApi(s: Services): Router {
         actor: actorLabel(actor),
         agentId: agent.id,
         ownerId: owner.id,
-        detail: { manifest: agent.manifest, agreementVersion: agent.agreementVersion },
+        detail: { manifest: agent.manifest, agreementVersion: agent.agreementVersion, ...(discovered ? { discoveryId: discovered.id } : {}) },
       },
       now(),
     );
+    if (discovered) s.store.updateDiscovered(discovered.id, { status: "enrolled", agentId: agent.id });
     res.status(201).json({ agent: agentView(agent) });
   });
 
@@ -578,6 +586,66 @@ export function consoleApi(s: Services): Router {
         .slice(0, 10),
       connectors: s.hub.status(),
     });
+  });
+
+  // ── Descubrimiento ────────────────────────────────────────
+
+  const findDiscovered = (id: string) => {
+    const app = s.store.getDiscovered(id);
+    if (!app) throw new HttpError(404, "Acceso descubierto no encontrado", "not_found");
+    return app;
+  };
+  const discoveredView = (app: DiscoveredApp) => ({ ...app, person: app.personId ? (s.store.getPerson(app.personId)?.name ?? null) : null });
+
+  /**
+   * Seguridad ve todo lo descubierto (por defecto, solo agentes y automatizaciones; ?kind=all incluye el resto).
+   * Una persona ve las invitaciones a inscribir lo que se encontró conectado a su cuenta.
+   */
+  r.get("/discovery", (req, res) => {
+    const actor = actorOf(res);
+    const kinds = req.query.kind === "all" ? undefined : (["ai_agent", "automation"] as const);
+    const apps = isSecurity(actor)
+      ? s.store.listDiscovered({ kinds: kinds && [...kinds] })
+      : s.store.listDiscovered({ personId: requirePerson(actor).id, kinds: kinds && [...kinds], statuses: ["invited", "enrolled"] });
+    res.json({ providers: s.discovery.providers, apps: apps.map(discoveredView) });
+  });
+
+  r.post("/discovery/scan", async (_req, res) => {
+    const actor = actorOf(res);
+    requireSecurity(actor);
+    if (!s.discovery.providers.length) {
+      throw new HttpError(409, "Configura discovery.google o discovery.microsoft para escanear", "not_configured");
+    }
+    res.json({ summary: await s.discovery.scan(actorLabel(actor)) });
+  });
+
+  r.post("/discovery/:id/invite", (req, res) => {
+    const actor = actorOf(res);
+    requireSecurity(actor);
+    const app = findDiscovered(param(req, "id"));
+    if (!app.personId) throw new HttpError(409, "Ese acceso no corresponde a una persona registrada en Agente Pass", "conflict");
+    if (app.status === "enrolled") throw new HttpError(409, "Ese acceso ya se inscribió", "conflict");
+    const { note } = noteBody.parse(req.body ?? {});
+    const updated = s.store.updateDiscovered(app.id, { status: "invited", decidedBy: actorLabel(actor), note: note ?? null });
+    s.audit.append(
+      { type: "discovery.invited", actor: actorLabel(actor), ownerId: app.personId, reason: note ?? null, detail: { discoveryId: app.id, appName: app.appName, provider: app.provider } },
+      now(),
+    );
+    res.json({ app: discoveredView(updated) });
+  });
+
+  r.post("/discovery/:id/dismiss", (req, res) => {
+    const actor = actorOf(res);
+    requireSecurity(actor);
+    const app = findDiscovered(param(req, "id"));
+    if (app.status === "enrolled") throw new HttpError(409, "Ese acceso ya se inscribió", "conflict");
+    const { note } = noteBody.parse(req.body ?? {});
+    const updated = s.store.updateDiscovered(app.id, { status: "dismissed", decidedBy: actorLabel(actor), note: note ?? null });
+    s.audit.append(
+      { type: "discovery.dismissed", actor: actorLabel(actor), ownerId: app.personId, reason: note ?? null, detail: { discoveryId: app.id, appName: app.appName, provider: app.provider } },
+      now(),
+    );
+    res.json({ app: discoveredView(updated) });
   });
 
   r.use(() => {

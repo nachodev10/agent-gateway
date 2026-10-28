@@ -28,8 +28,10 @@ export interface Decision {
   ruleId: string | null;
   approver: ApproverKind;
   source: "status" | "grant" | "clearance" | "rule" | "tier";
+  /** La regla que bloqueó pide suspender al agente en el acto. */
+  suspend?: boolean;
   /** Reglas en modo observación que habrían aplicado (no afectan la decisión). */
-  observed?: { ruleId: string; effect: Effect }[];
+  observed?: { ruleId: string; effect: Effect; suspend?: boolean }[];
 }
 
 export interface Visibility {
@@ -136,7 +138,7 @@ export class PolicyEngine {
       subject.agent,
       tool,
     );
-    const observed = matched.filter((r) => r.mode === "observe").map((r) => ({ ruleId: r.id, effect: r.effect }));
+    const observed = matched.filter((r) => r.mode === "observe").map((r) => ({ ruleId: r.id, effect: r.effect, ...(r.suspend ? { suspend: true } : {}) }));
     return observed.length ? { ...decision, observed } : decision;
   }
 
@@ -203,8 +205,12 @@ export class PolicyEngine {
 
   private combine(rules: RuleConfig[], agent: Agent, tool: ToolRef): Decision {
     const describe = (r: RuleConfig) => r.message ?? r.description ?? `Regla ${r.id}`;
-    const deny = rules.find((r) => r.effect === "deny");
-    if (deny) return { effect: "deny", reason: describe(deny), ruleId: deny.id, approver: deny.approver, source: "rule" };
+    const denies = rules.filter((r) => r.effect === "deny");
+    // Si varias reglas bloquean, manda la que además suspende.
+    const deny = denies.find((r) => r.suspend) ?? denies[0];
+    if (deny) {
+      return { effect: "deny", reason: describe(deny), ruleId: deny.id, approver: deny.approver, source: "rule", ...(deny.suspend ? { suspend: true } : {}) };
+    }
 
     const approvals = rules.filter((r) => r.effect === "require_approval");
     if (approvals.length) {

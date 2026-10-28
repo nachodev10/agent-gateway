@@ -141,3 +141,36 @@ export interface AuditEvent {
   prevHash: string;
   hash: string;
 }
+
+// ── Descubrimiento de agentes ya conectados ─────────────────
+
+export const DISCOVERY_PROVIDERS = ["google", "microsoft"] as const;
+export type DiscoveryProvider = (typeof DISCOVERY_PROVIDERS)[number];
+export const DISCOVERED_KINDS = ["ai_agent", "automation", "other"] as const;
+export type DiscoveredKind = (typeof DISCOVERED_KINDS)[number];
+export const DISCOVERY_RISKS = ["high", "medium", "low"] as const;
+export type DiscoveryRisk = (typeof DISCOVERY_RISKS)[number];
+export const DISCOVERY_STATUSES = ["new", "invited", "enrolled", "dismissed"] as const;
+export type DiscoveryStatus = (typeof DISCOVERY_STATUSES)[number];
+
+/** Una aplicación con acceso a la cuenta de una persona en Google Workspace o Microsoft 365. */
+export interface DiscoveredApp {
+  id: string;
+  provider: DiscoveryProvider;
+  appId: string;
+  appName: string;
+  /** Cuenta que dio el acceso; "*" si un administrador lo dio para toda la organización. */
+  userEmail: string;
+  personId: string | null;
+  scopes: string[];
+  kind: DiscoveredKind;
+  risk: DiscoveryRisk;
+  status: DiscoveryStatus;
+  /** false si el acceso ya no aparece en el último escaneo (la persona o TI lo quitó). */
+  active: boolean;
+  agentId: string | null;
+  note: string | null;
+  decidedBy: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}

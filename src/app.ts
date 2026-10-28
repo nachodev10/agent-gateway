@@ -9,6 +9,7 @@ import { AuditLog } from "./audit.js";
 import { type AgentRequest, authenticateAgent, publicBaseUrl } from "./auth.js";
 import type { GatewayConfig } from "./config.js";
 import { ConnectorHub } from "./connectors.js";
+import { Discovery } from "./discovery.js";
 import { Dlp } from "./dlp.js";
 import { DpopVerifier } from "./dpop.js";
 import { type AgentContext, type CallOutcome, Governance } from "./governance.js";
@@ -32,7 +33,7 @@ export interface GatewayOptions {
   clock?: () => Date;
   /** Clave privada (JWK) para firmar pasaportes; si falta, se genera y se guarda en la base. */
   signingJwk?: string;
-  /** fetch para los guardrails webhook y Vault (inyectable en pruebas). */
+  /** fetch para los guardrails webhook, Vault y el descubrimiento (inyectable en pruebas). */
   fetch?: typeof fetch;
 }
 
@@ -65,7 +66,8 @@ export async function createGateway(options: GatewayOptions): Promise<Gateway> {
   const dpop = new DpopVerifier();
   const guardrails = new GuardrailEngine(config, policy, options.fetch);
   const governance = new Governance({ config, store, audit, policy, dlp, hub, passport, guardrails, log, clock });
-  const services: Services = { config, store, audit, policy, dlp, hub, governance, passport, dpop, log, clock, adminToken: options.adminToken };
+  const discovery = new Discovery({ config, store, audit, log, fetch: options.fetch ?? fetch, clock });
+  const services: Services = { config, store, audit, policy, dlp, hub, governance, passport, dpop, discovery, log, clock, adminToken: options.adminToken };
 
   const agentRequest = (req: Request): AgentRequest => ({
     authorization: req.headers.authorization,
@@ -200,6 +202,7 @@ export async function createGateway(options: GatewayOptions): Promise<Gateway> {
       };
     },
     async close() {
+      discovery.stop();
       await hub.close();
       store.close();
     },

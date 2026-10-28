@@ -139,6 +139,16 @@ Las credenciales de los conectores pueden venir de HashiCorp Vault u OpenBao. El
 
 En conectores http, un `fetch` propio del conector agrega las credenciales y la cabecera de delegación en cada request, con el contexto de la llamada en curso (`AsyncLocalStorage`). En conectores stdio las credenciales se entregan como variables de entorno al lanzar el proceso.
 
+## Suspensión inmediata
+
+El cortacircuitos suspende a un agente que acumula bloqueos; sirve para sondeos y bucles. Hay intentos que no merecen una segunda oportunidad, como sacar una credencial. Una regla `deny` o un guardrail `deny` con `suspend: true` suspende al agente en el primer intento. La suspensión invalida todos sus tokens en el siguiente request y solo la revierte su jefatura o seguridad. Si varias reglas bloquean la misma llamada, manda la que suspende. Un guardrail que no pudo evaluarse (por ejemplo, un validador caído) nunca suspende.
+
+## Descubrimiento
+
+El gateway gobierna lo que pasa por él, pero un empleado puede haber conectado un agente directo a su correo o a su Drive. El descubrimiento lee esos accesos OAuth en Google Workspace (Admin SDK, tokens por usuario, con una cuenta de servicio de solo lectura) y en Microsoft 365 (Graph, permisos delegados, con `Directory.Read.All`), los clasifica (agente de IA, automatización u otra app) y estima su riesgo por los permisos.
+
+No bloquea nada: seguridad invita a inscribir o descarta, y la persona inscribe su agente desde la invitación, que queda vinculada a la ficha. Es la misma idea del BYOA responsable aplicada a lo que ya existe: invitar en vez de prohibir. Para cortar un acceso OAuth se usa la consola de Google o Microsoft.
+
 ## Guardrails
 
 La política decide *si* un agente puede usar una herramienta; los guardrails revisan *qué contenido* va y viene. El diseño toma la idea de hooks del gateway de modelos de Portkey (chequeos antes y después, veredicto, bloquear u observar, validador externo por webhook) y la aplica a herramientas:
@@ -172,7 +182,8 @@ Los conectores se clasifican como `public`, `internal`, `confidential` o `restri
 | Responsable que deja la empresa | Desvinculación suspende y revoca | SCIM automático |
 | Abuso del propio responsable | Nadie aprueba su propio agente; pagos con jefatura; bitácora | Revisión periódica por seguridad |
 | Alteración de la bitácora | Cadena de hashes verificable | Anclaje externo del último hash |
-| Agentes fuera del gateway (shadow AI) | Ninguna credencial corporativa fuera del gateway; política de uso | Descubrimiento vía registros de SaaS y red |
+| Agentes fuera del gateway (shadow AI) | Ninguna credencial corporativa fuera del gateway; política de uso; descubrimiento de accesos OAuth en Google Workspace y Microsoft 365 con invitación a inscribirse | Agentes que usan contraseñas guardadas o un navegador; registros de red |
+| Agente manipulado que intenta algo grave | Reglas y guardrails con `suspend: true`: suspensión en el primer intento | Alertas en tiempo real a seguridad |
 
 ## Marcos de referencia
 

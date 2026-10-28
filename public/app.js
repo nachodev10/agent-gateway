@@ -23,12 +23,25 @@ const LABELS = {
     "person.updated": "Persona actualizada",
     "person.deactivated": "Persona desvinculada",
     "person.token_issued": "Token de consola emitido",
+    "discovery.scanned": "Escaneo de cuentas",
+    "discovery.found": "Agente descubierto",
+    "discovery.invited": "Invitación a inscribir",
+    "discovery.dismissed": "Acceso descartado",
   },
+  kind: { ai_agent: "Agente de IA", automation: "Automatización", other: "Otra app" },
+  risk: { high: "Riesgo alto", medium: "Riesgo medio", low: "Riesgo bajo" },
+  discovery: { new: "Sin inscribir", invited: "Invitado", enrolled: "Inscrito", dismissed: "Descartado" },
+  provider: { google: "Google Workspace", microsoft: "Microsoft 365" },
 };
-const TONE = { allow: "ok", approved: "ok", active: "ok", deny: "danger", denied: "danger", suspended: "danger", rejected: "danger", pending: "warn", error: "" };
+const TONE = {
+  allow: "ok", approved: "ok", active: "ok", enrolled: "ok",
+  deny: "danger", denied: "danger", suspended: "danger", rejected: "danger", high: "danger",
+  pending: "warn", medium: "warn", new: "warn", invited: "",
+  error: "",
+};
 const RUNTIMES = ["claude-code", "claude-desktop", "cursor", "vscode", "chatgpt", "custom"];
 
-const state = { token: null, me: null, meta: null, agents: [], approvals: [], events: [], overview: null, integrity: null };
+const state = { token: null, me: null, meta: null, agents: [], approvals: [], events: [], overview: null, integrity: null, discovery: { providers: [], apps: [] } };
 let refreshTimer = null;
 let integrityTimer = null;
 
@@ -209,6 +222,12 @@ function renderShell() {
       ),
       el("section", { class: "card" }, el("h2", {}, "Agentes"), el("div", { id: "agents", class: "scroll-x" })),
       el(
+        "section",
+        { class: "card", id: "discovery-card" },
+        el("h2", {}, state.me.isSecurity ? "Agentes ya conectados a las cuentas" : "Te invitamos a inscribir", el("span", { id: "discovery-count", class: "badge" }, "0")),
+        el("div", { id: "discovery", class: "scroll-x" }),
+      ),
+      el(
         "div",
         { class: "grid-2" },
         state.me.person ? el("section", { class: "card" }, el("h2", {}, "Inscribir un agente"), el("div", { class: "card-body" }, enrollForm())) : null,
@@ -221,12 +240,14 @@ function renderShell() {
 async function refresh() {
   if (!state.token) return;
   try {
-    const [overview, agents, approvals, audit] = await Promise.all([
+    const [overview, agents, approvals, audit, discovery] = await Promise.all([
       api("/overview"),
       api("/agents"),
       api("/approvals?status=pending"),
       api("/audit?limit=40"),
+      api("/discovery"),
     ]);
+    state.discovery = discovery;
     state.overview = overview;
     state.agents = agents.agents;
     state.approvals = approvals.approvals;
@@ -235,6 +256,7 @@ async function refresh() {
     renderApprovals();
     renderFeed();
     renderAgents();
+    renderDiscovery();
     renderConnectors();
   } catch (error) {
     if (state.token) toast(error.message, "error");
@@ -264,6 +286,10 @@ function renderKpis() {
     kpi("Bloqueos 24 h", o.last24h.denied, o.last24h.denied ? "alert" : ""),
     kpi("Suspendidos", o.agents.suspended, o.agents.suspended ? "alert" : ""),
   ];
+  if (state.me.isSecurity && state.discovery.providers.length) {
+    const unenrolled = state.discovery.apps.filter((d) => d.active && d.status === "new").length;
+    cards.push(kpi("Agentes sin inscribir", unenrolled, unenrolled ? "attention" : ""));
+  }
   if (state.integrity) {
     cards.push(
       kpi("Bitácora", state.integrity.ok ? `Íntegra · ${state.integrity.count}` : `Alterada en #${state.integrity.brokenAtSeq}`, state.integrity.ok ? "" : "alert"),
@@ -431,6 +457,115 @@ function renderAgents() {
   );
 }
 
+const scopeLabel = (scope) => scope.replace("https://www.googleapis.com/auth/", "").replace("https://mail.google.com/", "gmail (todo)");
+
+function renderDiscovery() {
+  const card = document.getElementById("discovery-card");
+  const container = document.getElementById("discovery");
+  const { providers, apps } = state.discovery;
+  const security = state.me.isSecurity;
+  card.hidden = !security && apps.length === 0;
+  document.getElementById("discovery-count").textContent = String(
+    security ? apps.filter((d) => d.active && d.status === "new").length : apps.filter((d) => d.status === "invited").length,
+  );
+
+  if (!security) {
+    container.replaceChildren(
+      ...apps.map((d) =>
+        el(
+          "div",
+          { class: "approval" },
+          el("div", {}, el("strong", {}, d.appName), ` tiene acceso a tu cuenta de ${LABELS.provider[d.provider]}. `, badge(LABELS.discovery[d.status], TONE[d.status])),
+          d.note ? el("div", { class: "muted" }, d.note) : null,
+          el("div", { class: "muted" }, `Permisos: ${d.scopes.map(scopeLabel).join(", ") || "—"}`),
+          d.status === "invited" ? el("div", { class: "actions" }, el("button", { class: "primary", onclick: () => startEnrollment(d) }, "Inscribirlo")) : null,
+        ),
+      ),
+    );
+    return;
+  }
+
+  const toolbar = providers.length
+    ? el(
+        "div",
+        { class: "actions card-body" },
+        el(
+          "button",
+          {
+            class: "primary",
+            onclick: () =>
+              act(async () => {
+                const { summary } = await api("/discovery/scan", { method: "POST" });
+                const parts = Object.entries(summary.providers).map(([p, r]) =>
+                  r.ok ? `${LABELS.provider[p]}: ${r.agents} agentes, ${r.new} nuevos` : `${LABELS.provider[p]}: ${r.error}`,
+                );
+                toast(parts.join(" · "));
+              }),
+          },
+          "Escanear ahora",
+        ),
+        el("span", { class: "muted" }, `Fuentes: ${providers.map((p) => LABELS.provider[p]).join(" y ")}`),
+      )
+    : el("div", { class: "muted card-body" }, "Configura discovery.google o discovery.microsoft en config/gateway.yaml para ver qué agentes ya tienen acceso a las cuentas de la empresa.");
+
+  if (!apps.length) {
+    container.replaceChildren(toolbar, providers.length ? el("div", { class: "empty" }, "Sin hallazgos. Escanea para ver qué agentes tienen acceso a las cuentas.") : "");
+    return;
+  }
+  const decide = (d, action) => {
+    const note = prompt(action === "invite" ? "Mensaje para la persona (opcional):" : "¿Por qué lo descartas? (opcional)");
+    if (note === null) return;
+    act(() => api(`/discovery/${d.id}/${action}`, { method: "POST", body: { note: note || undefined } }), action === "invite" ? "Invitación enviada" : "Acceso descartado");
+  };
+  container.replaceChildren(
+    toolbar,
+    el(
+      "table",
+      { class: "wide" },
+      el("thead", {}, el("tr", {}, ["App", "Cuenta", "Tipo", "Riesgo", "Permisos", "Estado", ""].map((h) => el("th", {}, h)))),
+      el(
+        "tbody",
+        {},
+        apps.map((d) => {
+          const scopes = d.scopes.map(scopeLabel);
+          const buttons = [];
+          if (d.personId && (d.status === "new" || d.status === "dismissed")) buttons.push(el("button", { onclick: () => decide(d, "invite") }, "Invitar a inscribir"));
+          if (d.status === "new" || d.status === "invited") buttons.push(el("button", { onclick: () => decide(d, "dismiss") }, "Descartar"));
+          return el(
+            "tr",
+            {},
+            el("td", {}, el("strong", {}, d.appName), el("div", { class: "muted" }, LABELS.provider[d.provider])),
+            el("td", {}, d.person || (d.userEmail === "*" ? "Toda la organización" : d.userEmail), d.person ? el("div", { class: "muted" }, d.userEmail) : null),
+            el("td", {}, LABELS.kind[d.kind]),
+            el("td", {}, badge(LABELS.risk[d.risk], TONE[d.risk])),
+            el("td", { class: "muted" }, scopes.slice(0, 3).join(", ") + (scopes.length > 3 ? ` +${scopes.length - 3}` : "")),
+            el(
+              "td",
+              {},
+              badge(LABELS.discovery[d.status], TONE[d.status]),
+              d.active ? null : el("div", { class: "muted" }, "Ya no tiene acceso"),
+              d.note ? el("div", { class: "muted" }, d.note) : null,
+            ),
+            el("td", {}, el("div", { class: "actions" }, buttons)),
+          );
+        }),
+      ),
+    ),
+  );
+}
+
+/** Lleva al formulario de inscripción con la app descubierta ya indicada. */
+function startEnrollment(d) {
+  const form = document.getElementById("enroll-form");
+  if (!form) return;
+  form.elements.name.value = d.appName;
+  form.elements.discoveryId.value = d.id;
+  form.elements.runtime.value = /chatgpt/i.test(d.appName) ? "chatgpt" : /claude/i.test(d.appName) ? "claude-desktop" : /cursor/i.test(d.appName) ? "cursor" : "custom";
+  document.getElementById("enroll-discovery").textContent = `Regularizas ${d.appName}, que ya tiene acceso a tu cuenta de ${LABELS.provider[d.provider]}.`;
+  form.scrollIntoView({ behavior: "smooth", block: "center" });
+  form.elements.purpose.focus();
+}
+
 function renderConnectors() {
   const connectors = state.overview?.connectors || [];
   document.getElementById("connectors").replaceChildren(
@@ -473,6 +608,7 @@ function enrollForm() {
     "form",
     {
       class: "stack",
+      id: "enroll-form",
       onsubmit: (event) => {
         event.preventDefault();
         const data = new FormData(form);
@@ -487,13 +623,18 @@ function enrollForm() {
           device: data.get("device") || undefined,
           requestedConnectors: data.getAll("connectors"),
           acceptAgreement: data.get("accept") === "on",
+          discoveryId: data.get("discoveryId") || undefined,
         };
         act(async () => {
           await api("/agents", { method: "POST", body });
           form.reset();
+          form.elements.discoveryId.value = "";
+          document.getElementById("enroll-discovery").textContent = "";
         }, "Solicitud enviada a tu jefatura");
       },
     },
+    el("input", { type: "hidden", name: "discoveryId", value: "" }),
+    el("div", { id: "enroll-discovery", class: "muted" }),
     el(
       "label",
       {},

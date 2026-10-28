@@ -120,6 +120,18 @@ dlp:
     email: confidential
     phone: confidential
 
+# Descubrimiento: agentes y automatizaciones que ya tienen acceso a las cuentas de la empresa.
+# Seguridad los revisa en la consola e invita a sus dueños a inscribirlos. Ver README.
+# discovery:
+#   intervalMinutes: 1440
+#   google:
+#     serviceAccount: "${GOOGLE_SERVICE_ACCOUNT_JSON}" # cuenta de servicio con delegación de dominio
+#     adminEmail: ti@miempresa.cl
+#   microsoft:
+#     tenantId: "${MS_TENANT_ID}"
+#     clientId: "${MS_CLIENT_ID}"
+#     clientSecret: "${MS_CLIENT_SECRET}" # permiso de aplicación Directory.Read.All
+
 # Sistemas de la empresa expuestos a los agentes. Solo el gateway tiene sus credenciales.
 connectors:
   - id: crm
@@ -156,6 +168,7 @@ connectors:
   #     publicar: { access: write }
 
 # Reglas de la empresa. Precedencia: deny > require_approval > allow > nivel del agente.
+# Una regla deny con suspend: true suspende al agente en el primer intento, sin esperar al cortacircuitos.
 rules:
   - id: nunca-eliminar-clientes
     description: Ningún agente elimina fichas de clientes; eso lo hace una persona.
@@ -192,6 +205,7 @@ rules:
     description: Los agentes de terceros no envían correos a nombre de la empresa.
     when: { origins: [third_party], connectors: [crm], tools: [enviar_correo] }
     effect: deny
+    suspend: true # la herramienta ni siquiera aparece para ellos: intentarla es sospechoso
 
   - id: escrituras-fuera-de-horario
     description: Fuera del horario laboral, toda escritura requiere aprobación del responsable.
@@ -222,6 +236,7 @@ guardrails:
     stage: before
     check: { type: regex, pattern: "\\[REDACTADO:secreto\\]" } # el DLP ya marcó la credencial
     action: deny
+    suspend: true # sacar credenciales es lo que ningún agente debe intentar: se suspende en el acto
     message: El agente intentó enviar una credencial a un sistema de la empresa
 
   # Validador externo (p. ej. un servicio anti-inyección o de clasificación de datos).

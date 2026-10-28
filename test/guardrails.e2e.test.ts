@@ -79,6 +79,7 @@ describe("guardrails", () => {
         check: { type: "webhook", url: "https://validador.example/check", headers: {}, timeoutMs: 1000 },
         action: "deny",
         onError: "allow",
+        suspend: false,
       }),
     );
     t = await startGateway({ config, fetch: fakeFetch });

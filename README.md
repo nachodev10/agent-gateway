@@ -68,6 +68,44 @@ Tipos de chequeo: `prompt_injection` (patrones en español e inglés), `regex` y
 
 Las reglas también aceptan `mode: observe`: se evalúan y quedan en la bitácora sin aplicarse, para medir el impacto de una regla antes de activarla.
 
+### Suspensión inmediata
+
+Una regla `deny` o un guardrail `deny` con `suspend: true` suspende al agente en el primer intento, sin esperar al cortacircuitos. Es para lo que ningún agente debería intentar nunca: en la configuración de ejemplo, enviar una credencial a un sistema o que un agente de terceros intente mandar correos a nombre de la empresa.
+
+- El agente pierde el acceso en el acto, con todos sus tokens, y recibe el motivo.
+- Queda un evento `agent.auto_suspended` con la regla o el guardrail que lo causó.
+- Lo reactiva su jefatura o seguridad, nunca el propio responsable.
+- En `mode: observe` solo se registra que habría suspendido.
+- Un validador externo caído nunca suspende a nadie, aunque su `onError` bloquee la llamada.
+
+## Descubrimiento de agentes ya conectados
+
+Antes de invitar a los agentes hay que saber cuáles ya entraron. Agente Pass lee los accesos OAuth que cada persona dio en **Google Workspace** y **Microsoft 365**, reconoce los agentes de IA (ChatGPT, Claude, Copilot, Perplexity, Fireflies y otros) y las automatizaciones (Zapier, Make, n8n), y estima su riesgo por los permisos: enviar correo o escribir en todo el Drive es alto; leer correo o archivos, medio.
+
+Nada se bloquea desde aquí. Seguridad decide:
+
+- **Invitar a inscribir**: la persona ve la invitación en su consola y, al inscribir el agente, el acceso queda vinculado a su ficha.
+- **Descartar**: por ejemplo, una automatización que TI ya aprobó.
+
+Cada escaneo conserva esas decisiones y marca los accesos que ya no aparecen. Si un proveedor falla, no se toca lo suyo.
+
+```yaml
+discovery:
+  intervalMinutes: 1440 # 0 = solo cuando seguridad lo pide
+  agentNames: [contador pro] # nombres extra que cuentan como agentes de IA
+  google:
+    serviceAccount: "${GOOGLE_SERVICE_ACCOUNT_JSON}"
+    adminEmail: ti@miempresa.cl
+  microsoft:
+    tenantId: "${MS_TENANT_ID}"
+    clientId: "${MS_CLIENT_ID}"
+    clientSecret: "${MS_CLIENT_SECRET}"
+```
+
+- **Google**: una cuenta de servicio con delegación de dominio y solo dos permisos de lectura, `admin.directory.user.readonly` y `admin.directory.user.security`, actuando a nombre de un administrador.
+- **Microsoft**: una aplicación registrada con el permiso de aplicación `Directory.Read.All` y consentimiento de administrador. Las apps propias de Microsoft se omiten.
+- **Prueba sin cuentas reales**: `npm run demo` usa un Google Workspace y un Microsoft 365 simulados (`examples/demo-clouds.ts`).
+
 ## Agentes de terceros
 
 Un agente de otra organización (proveedor, consultora, cliente) entra igual que el de un empleado, con controles más estrictos:
@@ -153,6 +191,8 @@ connectors:
 - **Agentes de terceros** patrocinados por un empleado, con topes de nivel y de datos y token ligado a su clave (DPoP).
 - **Pasaporte del agente** firmado por el gateway y verificable por cualquier sistema.
 - **Delegación por llamada** (RFC 8693): cada sistema sabe a nombre de qué persona actúa el agente, en qué acción y con qué firma.
+- **Suspensión inmediata** en el primer intento de lo que ninguna regla debería permitir.
+- **Descubrimiento** de agentes de IA y automatizaciones ya conectados a Google Workspace y Microsoft 365, para invitarlos a inscribirse.
 - **Credenciales temporales** desde HashiCorp Vault u OpenBao, con una credencial distinta para leer y para escribir.
 - **Guardrails** antes y después de cada llamada (inyección de instrucciones, regex, validador externo) y reglas en modo observación.
 - **Imagen Docker** de producción.
@@ -321,11 +361,13 @@ Consola (token `agp_…` de una persona o token de administración):
 | POST | `/api/agents/:id/suspend` | Responsable, jefatura o seguridad |
 | GET/POST | `/api/approvals`, `/api/approvals/:id/decide` | Según el aprobador de cada solicitud |
 | GET | `/api/audit`, `/api/audit/verify` | Alcance propio · verificación solo seguridad |
+| GET | `/api/discovery` | Seguridad ve todo; cada persona, sus invitaciones |
+| POST | `/api/discovery/scan` · `/api/discovery/:id/invite` · `dismiss` | Seguridad |
 
 ## Qué cubre y qué no
 
 - **Cubre** lo que el agente hace con los sistemas de la empresa a través del gateway.
-- **No cubre** lo que el agente haga por fuera (por ejemplo, controlando un navegador con la sesión del empleado). Para eso: nunca entregar credenciales corporativas a agentes, restringir aplicaciones OAuth de terceros en Google Workspace o Microsoft 365 y, en equipos administrados, forzar por MDM la configuración MCP de los agentes.
+- **No cubre** lo que el agente haga por fuera (por ejemplo, controlando un navegador con la sesión del empleado). Para eso: nunca entregar credenciales corporativas a agentes, restringir aplicaciones OAuth de terceros en Google Workspace o Microsoft 365 y, en equipos administrados, forzar por MDM la configuración MCP de los agentes. El descubrimiento muestra los accesos OAuth que ya existen, pero no ve agentes que usan una contraseña guardada o un navegador.
 - **Inyección de prompts**: el gateway no impide que un agente sea manipulado, pero acota el daño con mínimo privilegio, aprobación humana para lo consecuente, DLP y cortacircuitos.
 - **Bitácora**: evidencia de manipulación, no prueba absoluta; quien controle la base podría recalcular la cadena. Anclar el último hash fuera del sistema está en la hoja de ruta.
 - **Tokens portadores**: los de empleados (Claude Code y otros clientes MCP envían un encabezado fijo) sirven hasta que se revocan o vencen si se filtran. Los de terceros van ligados a su clave con DPoP.
@@ -360,10 +402,11 @@ src/
   dpop.ts · jose.ts      Tokens ligados a la clave del agente (DPoP) y firmas ES256
   passport.ts            Pasaporte firmado del agente y token de delegación por llamada
   vault.ts               Credenciales temporales desde Vault u OpenBao
+  discovery.ts           Agentes ya conectados a Google Workspace y Microsoft 365
   guardrails.ts          Chequeos de contenido antes y después de cada llamada
   store.ts               Persistencia (SQLite)
 public/                  Consola web (sin build)
-examples/                Conectores de demostración (CRM y Finanzas) y cliente para agentes de terceros
+examples/                Conectores de demostración (CRM y Finanzas), nubes simuladas para el descubrimiento y cliente para agentes de terceros
 scripts/demo.ts          Demo de punta a punta
 test/                    Pruebas unitarias y de punta a punta con un cliente MCP real
 ```

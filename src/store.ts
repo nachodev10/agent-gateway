@@ -2,6 +2,11 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type {
+  DiscoveredApp,
+  DiscoveredKind,
+  DiscoveryProvider,
+  DiscoveryRisk,
+  DiscoveryStatus,
   Agent,
   AgentManifest,
   AgentStatus,
@@ -96,6 +101,25 @@ CREATE TABLE IF NOT EXISTS audit_events (
   prev_hash TEXT NOT NULL,
   hash TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS discovered_apps (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  app_id TEXT NOT NULL,
+  app_name TEXT NOT NULL,
+  user_email TEXT NOT NULL,
+  person_id TEXT,
+  scopes TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  risk TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'new',
+  active INTEGER NOT NULL DEFAULT 1,
+  agent_id TEXT,
+  note TEXT,
+  decided_by TEXT,
+  first_seen_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  UNIQUE (provider, app_id, user_email)
+);
 CREATE TABLE IF NOT EXISTS signing_keys (
   kid TEXT PRIMARY KEY,
   private_jwk TEXT NOT NULL,
@@ -110,6 +134,38 @@ CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_events(ts);
 type Row = Record<string, unknown>;
 
 const str = (v: unknown) => (v === null || v === undefined ? null : String(v));
+
+function toDiscovered(r: Row): DiscoveredApp {
+  return {
+    id: String(r.id),
+    provider: r.provider as DiscoveryProvider,
+    appId: String(r.app_id),
+    appName: String(r.app_name),
+    userEmail: String(r.user_email),
+    personId: str(r.person_id),
+    scopes: JSON.parse(String(r.scopes)) as string[],
+    kind: r.kind as DiscoveredKind,
+    risk: r.risk as DiscoveryRisk,
+    status: r.status as DiscoveryStatus,
+    active: Number(r.active) === 1,
+    agentId: str(r.agent_id),
+    note: str(r.note),
+    decidedBy: str(r.decided_by),
+    firstSeenAt: String(r.first_seen_at),
+    lastSeenAt: String(r.last_seen_at),
+  };
+}
+
+export interface DiscoveredInput {
+  provider: DiscoveryProvider;
+  appId: string;
+  appName: string;
+  userEmail: string;
+  personId: string | null;
+  scopes: string[];
+  kind: DiscoveredKind;
+  risk: DiscoveryRisk;
+}
 
 function toPerson(r: Row): Person {
   return {
@@ -547,6 +603,74 @@ export class Store {
       )
       .get(agentId, since.toISOString());
     return Number((row as Row).n);
+  }
+
+  // ── Descubrimiento ───────────────────────────────────────
+
+  /** Registra o actualiza un acceso visto en un escaneo; conserva el estado que le dio seguridad. */
+  upsertDiscovered(input: DiscoveredInput, now: Date): { app: DiscoveredApp; created: boolean } {
+    const ts = now.toISOString();
+    const existing = this.db
+      .prepare("SELECT id FROM discovered_apps WHERE provider = ? AND app_id = ? AND user_email = ?")
+      .get(input.provider, input.appId, input.userEmail) as Row | undefined;
+    if (existing) {
+      this.db
+        .prepare(
+          `UPDATE discovered_apps SET app_name = ?, person_id = ?, scopes = ?, kind = ?, risk = ?, active = 1, last_seen_at = ? WHERE id = ?`,
+        )
+        .run(input.appName, input.personId, JSON.stringify(input.scopes), input.kind, input.risk, ts, String(existing.id));
+      return { app: this.getDiscovered(String(existing.id))!, created: false };
+    }
+    const id = newId("dsc");
+    this.db
+      .prepare(
+        `INSERT INTO discovered_apps (id, provider, app_id, app_name, user_email, person_id, scopes, kind, risk, first_seen_at, last_seen_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(id, input.provider, input.appId, input.appName, input.userEmail, input.personId, JSON.stringify(input.scopes), input.kind, input.risk, ts, ts);
+    return { app: this.getDiscovered(id)!, created: true };
+  }
+
+  /** Marca como inactivos los accesos de un proveedor que no aparecieron en el escaneo hecho en `scannedAt`. */
+  markDiscoveredMissing(provider: DiscoveryProvider, scannedAt: Date): number {
+    const result = this.db
+      .prepare("UPDATE discovered_apps SET active = 0 WHERE provider = ? AND active = 1 AND last_seen_at < ?")
+      .run(provider, scannedAt.toISOString());
+    return Number(result.changes);
+  }
+
+  getDiscovered(id: string): DiscoveredApp | undefined {
+    const row = this.db.prepare("SELECT * FROM discovered_apps WHERE id = ?").get(id) as Row | undefined;
+    return row ? toDiscovered(row) : undefined;
+  }
+
+  listDiscovered(filter: { personId?: string; kinds?: DiscoveredKind[]; statuses?: DiscoveryStatus[] } = {}): DiscoveredApp[] {
+    const where: string[] = [];
+    const params: string[] = [];
+    if (filter.personId) {
+      where.push("person_id = ?");
+      params.push(filter.personId);
+    }
+    if (filter.kinds?.length) {
+      where.push(`kind IN (${filter.kinds.map(() => "?").join(", ")})`);
+      params.push(...filter.kinds);
+    }
+    if (filter.statuses?.length) {
+      where.push(`status IN (${filter.statuses.map(() => "?").join(", ")})`);
+      params.push(...filter.statuses);
+    }
+    const sql = `SELECT * FROM discovered_apps ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY active DESC, CASE risk WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, app_name, user_email`;
+    return (this.db.prepare(sql).all(...params) as Row[]).map(toDiscovered);
+  }
+
+  updateDiscovered(id: string, patch: { status: DiscoveryStatus; decidedBy?: string | null; note?: string | null; agentId?: string | null }): DiscoveredApp {
+    const current = this.getDiscovered(id);
+    if (!current) throw new Error(`Acceso descubierto no encontrado: ${id}`);
+    this.db
+      .prepare("UPDATE discovered_apps SET status = ?, decided_by = ?, note = ?, agent_id = ? WHERE id = ?")
+      .run(patch.status, patch.decidedBy ?? current.decidedBy, patch.note ?? current.note, patch.agentId ?? current.agentId, id);
+    return this.getDiscovered(id)!;
   }
 
   toolCallStats(since: Date, agentIds?: string[]): { agentId: string; decision: string; n: number }[] {
