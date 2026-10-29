@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "BYOA responsable: gateway MCP para gobernar y monitorear los agentes de IA que los empleados traen a la empresa.",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22.13"

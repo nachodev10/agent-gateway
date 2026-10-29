@@ -131,4 +131,4 @@ Please don't open a public issue for a vulnerability. Use GitHub's private vulne
 
 ## License
 
-The project doesn't have an open-source license yet; the maintainer will add one. Until then, please ask in an issue before reusing the code elsewhere.
+Agente Pass is released under the [MIT License](LICENSE). By contributing, you agree that your contributions are licensed under the same terms.

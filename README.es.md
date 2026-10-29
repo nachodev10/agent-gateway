@@ -443,3 +443,7 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+## Licencia
+
+[MIT](LICENSE)

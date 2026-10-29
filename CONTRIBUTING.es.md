@@ -116,4 +116,4 @@ Por favor no abras un issue público por una vulnerabilidad. Usa el reporte priv
 
 ## Licencia
 
-El proyecto todavía no tiene una licencia de código abierto; quien lo mantiene la agregará. Mientras tanto, pregunta en un issue antes de reutilizar el código en otro lugar.
+Agente Pass se publica con la [licencia MIT](LICENSE). Al contribuir, aceptas que tus aportes queden bajo la misma licencia.
