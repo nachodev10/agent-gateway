@@ -410,7 +410,7 @@ Console (a person's `agp_…` token or the admin token):
 6. Per-agent anomaly detection: volume, hours, new tools.
 7. Optional model gateway for restricted data with a corporate provider.
 
-More detail: [architecture and design decisions](docs/architecture.md), [what's built and what's missing](docs/status.md), and a [BYOA policy template](docs/byoa-policy.md) for your team. The Spanish sales page is in [site/index.html](site/index.html).
+More detail: [architecture and design decisions](docs/architecture.md), [what's built and what's missing](docs/status.md), and a [BYOA policy template](docs/byoa-policy.md) for your team. The sales page, in English and Spanish with a live sky that follows the time and weather, is in [site/index.html](site/index.html).
 
 ### Project structure
 

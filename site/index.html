@@ -8,7 +8,7 @@
 <body>
 <title>Agente Pass</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Los agentes de tu equipo, trabajando en tu empresa bajo tus reglas.">
+<meta name="description" content="Agente Pass: los agentes de IA de tu equipo, trabajando bajo tus reglas. Your team's AI agents, working under your rules.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Syne:wght@800&display=swap">
@@ -82,9 +82,6 @@ body::before {
     radial-gradient(60vmax 40vmax at 82% 8%, var(--glow), transparent 60%),
     linear-gradient(180deg, var(--sky-a) 0%, var(--sky-b) 55%, var(--sky-c) 100%);
 }
-.stars { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .stars { opacity: 1; } }
-:root[data-theme="dark"] .stars { opacity: 1; }
 
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -336,9 +333,74 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* El cielo manda: de día la interfaz va en tema Día y de noche en tema Noche, como en Soul.
+   Sin JavaScript, la página sigue el tema del sistema (bloques de arriba). */
+:root[data-sky="day"] {
+  --ink: #1a1b1f; --ink-2: rgba(26, 27, 31, 0.67); --ink-3: rgba(26, 27, 31, 0.52); --ink-inv: #ffffff;
+  --card: rgba(255, 255, 255, 0.58); --card-2: rgba(255, 255, 255, 0.36); --sheet: rgba(250, 251, 254, 0.86);
+  --solid: #ffffff; --hair: rgba(26, 27, 31, 0.1); --track: rgba(26, 27, 31, 0.12); --bar: rgba(255, 255, 255, 0.76);
+  --ok: #116042; --warn: #7a4806; --bad: #982f27;
+  --shadow: 0 1px 1px rgba(20, 30, 60, 0.04), 0 14px 34px rgba(20, 30, 60, 0.09);
+  --lift: 0 1px 2px rgba(20, 30, 60, 0.1), 0 0 0 1px rgba(26, 27, 31, 0.06);
+  color-scheme: light;
+}
+:root[data-sky="night"] {
+  --ink: #eef0fb; --ink-2: rgba(238, 240, 251, 0.68); --ink-3: rgba(238, 240, 251, 0.5); --ink-inv: #12162c;
+  --card: rgba(18, 24, 54, 0.52); --card-2: rgba(18, 24, 54, 0.34); --sheet: rgba(17, 22, 48, 0.9);
+  --solid: rgba(255, 255, 255, 0.15); --hair: rgba(238, 240, 251, 0.13); --track: rgba(238, 240, 251, 0.17); --bar: rgba(20, 26, 58, 0.8);
+  --ok: #62d8a7; --warn: #f2b75f; --bad: #ff9085;
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+  --lift: 0 0 0 1px rgba(238, 240, 251, 0.1);
+  color-scheme: dark;
+}
+/* El texto sobre el cielo cambia de color según qué tan oscuro está; el script lo decide. */
+:root[data-on-sky="light"] { --on-sky: #ffffff; --on-sky-2: rgba(255, 255, 255, 0.82); --on-sky-shadow: 0 1px 14px rgba(8, 12, 30, 0.35); }
+:root[data-on-sky="dark"] { --on-sky: #1a1b1f; --on-sky-2: rgba(26, 27, 31, 0.72); --on-sky-shadow: 0 1px 14px rgba(255, 255, 255, 0.4); }
+.greeting, .page-title, .lede, .eyebrow.on-sky { text-shadow: var(--on-sky-shadow, none); }
+.eyebrow.on-sky { color: var(--on-sky); }
+
+.sky canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* Idioma: se muestra solo el texto del idioma activo. Sin script queda español. */
+:root:not([data-lang="en"]) [data-l="en"], :root[data-lang="en"] [data-l="es"] { display: none !important; }
+.lang { display: inline-flex; gap: 2px; padding: 0 2px; }
+.lang button {
+  font: 500 13px/1 var(--font-ui); letter-spacing: 0.02em; color: var(--ink-2); background: transparent;
+  border: 0; padding: 8px 9px; border-radius: var(--r-pill); cursor: pointer;
+}
+.lang button[aria-pressed="true"] { background: var(--track); color: var(--ink); }
+
+/* Barra del cielo: hora, clima y un control para ver otra hora. */
+body { padding-block: 0 104px; }
+.skybar {
+  position: fixed; z-index: 6;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 6px; border-radius: 22px; display: grid; gap: 6px;
+  max-width: calc(100vw - 2 * max(16px, env(safe-area-inset-left, 0px)));
+}
+.skybar-row { display: flex; align-items: center; gap: 4px; }
+.sky-ico { width: 16px; height: 16px; margin-left: 8px; color: var(--ink-2); flex: none; }
+.sky-label { font-size: 13.5px; font-weight: 500; padding: 0 8px 0 4px; white-space: nowrap; }
+.sky-weather { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--r-pill); background: var(--track); }
+.skybar button { border: 0; background: transparent; color: var(--ink-2); cursor: pointer; border-radius: var(--r-pill); display: grid; place-items: center; }
+.sky-weather button { width: 30px; height: 30px; }
+.sky-weather button svg, .sky-time-btn svg { width: 16px; height: 16px; }
+.sky-weather button[aria-pressed="true"] { background: var(--ink); color: var(--ink-inv); }
+.sky-time-btn { width: 34px; height: 34px; }
+.sky-time-btn[aria-expanded="true"] { background: var(--track); color: var(--ink); }
+.skybar-time { display: flex; align-items: center; gap: 10px; padding: 2px 8px 4px; flex-wrap: wrap; }
+.skybar-time[hidden] { display: none; }
+.skybar-time input { flex: 1; min-width: 140px; accent-color: var(--ink); }
+.sky-now { font: 500 13px/1 var(--font-ui); padding: 8px 12px; background: var(--solid) !important; color: var(--ink) !important; box-shadow: var(--lift); }
+@media (max-width: 420px) { .sky-label { display: none; } }
+.code-card > * { min-width: 0; }
+.wordmark { white-space: nowrap; }
+@media (max-width: 520px) { .tabs a.cta { display: none; } .brand { padding: 10px 14px; } }
 </style>
 
-<div class="sky" aria-hidden="true"><canvas class="stars" id="stars"></canvas></div>
+<div class="sky" aria-hidden="true"><canvas id="sky"></canvas></div>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
@@ -351,20 +413,27 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
     <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
-    <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10.5a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6-1.3A4.7 4.7 0 0 0 7 18.5z"/></symbol>
+    <symbol id="i-rain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15h10.5a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6-1.3A4.7 4.7 0 0 0 7 15z"/><path d="M8.5 18l-1 2.5M12.5 18l-1 2.5M16.5 18l-1 2.5"/></symbol>
   </defs>
 </svg>
 
 <div class="wrap">
 
 <header class="top">
-  <a class="brand" href="#inicio" aria-label="Agente Pass, inicio"><span class="wordmark">agente pass</span></a>
-  <nav class="tabs" aria-label="Secciones">
-    <a href="#capas">Cómo protege</a>
-    <a href="#terceros">Terceros</a>
-    <a href="#planes">Planes</a>
-    <a class="cta" href="#demo">Pedir una demo</a>
+  <a class="brand" href="#inicio" data-aria-es="Agente Pass, inicio" data-aria-en="Agente Pass, home"><span class="wordmark">agente pass</span></a>
+  <nav class="tabs" data-aria-es="Secciones" data-aria-en="Sections">
+    <a href="#capas"><span data-l="es">Cómo protege</span><span data-l="en">How it protects</span></a>
+    <a href="#terceros"><span data-l="es">Terceros</span><span data-l="en">Vendors</span></a>
+    <a href="#planes"><span data-l="es">Planes</span><span data-l="en">Plans</span></a>
+    <span class="lang" role="group" aria-label="Idioma · Language">
+      <button type="button" data-set-lang="es" lang="es">ES</button>
+      <button type="button" data-set-lang="en" lang="en">EN</button>
+    </span>
+    <a class="cta" href="#demo"><span data-l="es">Pedir una demo</span><span data-l="en">Book a demo</span></a>
   </nav>
 </header>
 
@@ -372,56 +441,56 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
 
 <div class="hero" id="inicio">
   <div class="hero-copy">
-    <span class="eyebrow" style="color: var(--on-sky)">BYOA responsable</span>
-    <h1 class="greeting">Tu equipo ya trabaja con agentes. <em>Que lo hagan bajo tus reglas.</em></h1>
-    <p class="lede">Agente Pass conecta los agentes que tu gente ya usa con los sistemas de la empresa. Cada agente tiene una persona responsable, entra solo a lo que aprobaste y espera tu firma en lo delicado.</p>
+    <span class="eyebrow on-sky"><span data-l="es">BYOA responsable</span><span data-l="en">Responsible BYOA</span></span>
+    <h1 class="greeting"><span data-l="es">Tu equipo ya trabaja con agentes. <em>Que lo hagan bajo tus reglas.</em></span><span data-l="en">Your team already works with AI agents. <em>Let them do it under your rules.</em></span></h1>
+    <p class="lede"><span data-l="es">Agente Pass conecta los agentes que tu gente ya usa con los sistemas de la empresa. Cada agente tiene una persona responsable, entra solo a lo que aprobaste y espera tu firma en lo delicado.</span><span data-l="en">Agente Pass connects the agents your people already use to your company's systems. Every agent has a human who answers for it, reaches only what you approved, and waits for your sign-off on anything sensitive.</span></p>
     <div class="hero-actions">
-      <a class="btn dark" href="#demo">Pedir una demo</a>
-      <a class="btn light" href="#pasos">Ver cómo entra un agente</a>
+      <a class="btn dark" href="#demo"><span data-l="es">Pedir una demo</span><span data-l="en">Book a demo</span></a>
+      <a class="btn light" href="#pasos"><span data-l="es">Ver cómo entra un agente</span><span data-l="en">See how an agent gets in</span></a>
     </div>
-    <div class="works-with" aria-label="Agentes compatibles">
+    <div class="works-with" data-aria-es="Agentes compatibles" data-aria-en="Compatible agents">
       <span class="chip"><span class="dot"></span>Claude Code</span>
-      <span class="chip"><span class="dot"></span>Cualquier agente que hable MCP</span>
-      <span class="chip next"><span class="dot"></span>ChatGPT y Claude web, próximamente</span>
+      <span class="chip"><span class="dot"></span><span data-l="es">Cualquier agente que hable MCP</span><span data-l="en">Any agent that speaks MCP</span></span>
+      <span class="chip next"><span class="dot"></span><span data-l="es">ChatGPT y Claude web, próximamente</span><span data-l="en">ChatGPT and Claude on the web, coming soon</span></span>
     </div>
   </div>
 
-  <div class="demo" aria-label="Ejemplo de un agente trabajando en Finanzas">
+  <div class="demo" data-aria-es="Ejemplo de un agente trabajando en Finanzas" data-aria-en="Example of an agent working in Finance">
     <article class="glass passport">
-      <span class="eyebrow">Ficha del agente · KYA</span>
+      <span class="eyebrow"><span data-l="es">Ficha del agente · KYA</span><span data-l="en">Agent profile · KYA</span></span>
       <div class="passport-head">
         <div class="avatar" aria-hidden="true">C</div>
         <div>
-          <div class="passport-name">Claude de Camila</div>
-          <div class="small">Responsable: Camila Torres · Finanzas</div>
+          <div class="passport-name"><span data-l="es">Claude de Camila</span><span data-l="en">Camila's Claude</span></div>
+          <div class="small"><span data-l="es">Responsable: Camila Torres · Finanzas</span><span data-l="en">Owner: Camila Torres · Finance</span></div>
         </div>
-        <span class="status ok">Activo</span>
+        <span class="status ok"><span data-l="es">Activo</span><span data-l="en">Active</span></span>
       </div>
       <dl class="kv">
-        <dt>Nivel</dt><dd>2 · Colaborador</dd>
-        <dt>Puede usar</dt><dd>Finanzas y CRM</dd>
-        <dt>Ve hasta</dt><dd>Datos confidenciales</dd>
-        <dt>Llave</dt><dd class="tab-nums">Vence el 26/11</dd>
+        <dt><span data-l="es">Nivel</span><span data-l="en">Tier</span></dt><dd><span data-l="es">2 · Colaborador</span><span data-l="en">2 · Collaborator</span></dd>
+        <dt><span data-l="es">Puede usar</span><span data-l="en">Can use</span></dt><dd><span data-l="es">Finanzas y CRM</span><span data-l="en">Finance and CRM</span></dd>
+        <dt><span data-l="es">Ve hasta</span><span data-l="en">Sees up to</span></dt><dd><span data-l="es">Datos confidenciales</span><span data-l="en">Confidential data</span></dd>
+        <dt><span data-l="es">Llave</span><span data-l="en">Key</span></dt><dd class="tab-nums"><span data-l="es">Vence el 26/11</span><span data-l="en">Expires Nov 26</span></dd>
       </dl>
     </article>
 
     <button class="glass act" id="act" type="button" aria-pressed="false">
-      <span class="verb" id="verb">Firmar</span>
+      <span class="verb" id="verb"><span data-l="es">Firmar</span><span data-l="en">Sign off</span></span>
       <span class="act-text">
-        <span class="conclusion" id="act-line">el pago de $1.200.000 a Imprenta Sur, que propone el Claude de Camila.</span>
-        <span class="caption" id="act-why">Se detuvo porque los pagos sobre $500.000 los aprueba la jefatura de Camila.</span>
+        <span class="conclusion" id="act-line"><span data-l="es">el pago de $1.200.000 a Imprenta Sur, que propone el Claude de Camila.</span><span data-l="en">the $1,200,000 payment to Imprenta Sur that Camila's Claude proposes.</span></span>
+        <span class="caption" id="act-why"><span data-l="es">Se detuvo porque los pagos sobre $500.000 los aprueba la jefatura de Camila.</span><span data-l="en">It stopped because payments over $500,000 need Camila's manager.</span></span>
       </span>
     </button>
 
     <article class="glass log" aria-live="polite">
       <div class="log-head">
-        <span class="eyebrow">Bitácora</span>
-        <span class="caption">Ejemplo · cada fila sella la anterior</span>
+        <span class="eyebrow"><span data-l="es">Bitácora</span><span data-l="en">Audit log</span></span>
+        <span class="caption"><span data-l="es">Ejemplo · cada fila sella la anterior</span><span data-l="en">Example · each row seals the one before</span></span>
       </div>
       <ol id="log">
-        <li><time>10:41</time><span>Leyó 3 facturas pendientes de Imprenta Sur</span><code>a91f…</code></li>
-        <li><time>10:42</time><span>Ocultó el RUT del proveedor: su nivel no lo ve</span><code>3c07…</code></li>
-        <li><time>10:43</time><span>Propuso pagar $1.200.000 y espera firma</span><code>e5d2…</code></li>
+        <li><time>10:41</time><span><span data-l="es">Leyó 3 facturas pendientes de Imprenta Sur</span><span data-l="en">Read 3 pending invoices from Imprenta Sur</span></span><code>a91f…</code></li>
+        <li><time>10:42</time><span><span data-l="es">Ocultó el RUT del proveedor: su nivel no lo ve</span><span data-l="en">Hid the vendor's tax ID: its tier can't see it</span></span><code>3c07…</code></li>
+        <li><time>10:43</time><span><span data-l="es">Propuso pagar $1.200.000 y espera firma</span><span data-l="en">Proposed paying $1,200,000, waiting for sign-off</span></span><code>e5d2…</code></li>
       </ol>
     </article>
   </div>
@@ -429,29 +498,29 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
 
 <section id="problema">
   <div class="section-head col">
-    <h2 class="page-title">Prohibirlos no los saca de la empresa. <em>Los esconde.</em></h2>
+    <h2 class="page-title"><span data-l="es">Prohibirlos no los saca de la empresa. <em>Los esconde.</em></span><span data-l="en">Banning them doesn't keep them out. <em>It hides them.</em></span></h2>
   </div>
   <div class="compare">
     <article class="glass panel muted">
-      <span class="eyebrow">Sin reglas</span>
-      <p class="conclusion">Los agentes trabajan igual, pero con cuentas personales y sin que nadie lo vea.</p>
+      <span class="eyebrow"><span data-l="es">Sin reglas</span><span data-l="en">No rules</span></span>
+      <p class="conclusion"><span data-l="es">Los agentes trabajan igual, pero con cuentas personales y sin que nadie lo vea.</span><span data-l="en">Agents work anyway, with personal accounts and nobody watching.</span></p>
       <ul>
-        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span>Se copian datos de clientes a mano en chats personales.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span>Una llave de API compartida queda guardada en diez computadores.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span>Nadie sabe qué agente cambió un precio, ni quién responde por él.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span>Cuando alguien deja la empresa, sus agentes siguen entrando.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span>Nadie sabe qué agentes ya tienen acceso al correo y al Drive de la empresa.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span><span data-l="es">Se copian datos de clientes a mano en chats personales.</span><span data-l="en">Customer data gets pasted by hand into personal chats.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span><span data-l="es">Una llave de API compartida queda guardada en diez computadores.</span><span data-l="en">A shared API key ends up saved on ten laptops.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span><span data-l="es">Nadie sabe qué agente cambió un precio, ni quién responde por él.</span><span data-l="en">Nobody knows which agent changed a price, or who answers for it.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span><span data-l="es">Cuando alguien deja la empresa, sus agentes siguen entrando.</span><span data-l="en">When someone leaves, their agents keep getting in.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-x"/></svg><span><span data-l="es">Nadie sabe qué agentes ya tienen acceso al correo y al Drive de la empresa.</span><span data-l="en">Nobody knows which agents already have access to company email and Drive.</span></span></li>
       </ul>
     </article>
     <article class="glass panel">
-      <span class="eyebrow">Con Agente Pass</span>
-      <p class="conclusion">Los invitas a trabajar con ficha, permisos y una persona que responde por ellos.</p>
+      <span class="eyebrow"><span data-l="es">Con Agente Pass</span><span data-l="en">With Agente Pass</span></span>
+      <p class="conclusion"><span data-l="es">Los invitas a trabajar con ficha, permisos y una persona que responde por ellos.</span><span data-l="en">You invite them in with a profile, permissions and a human who answers for them.</span></p>
       <ul>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Cada agente tiene nombre, nivel y una persona que responde por él.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Las credenciales de tus sistemas nunca salen de Agente Pass.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Cada llamada queda registrada con su agente, su responsable y su motivo.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Al desvincular a la persona, sus agentes quedan fuera en el mismo momento.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Descubre los agentes ya conectados a Google Workspace o Microsoft 365 e invita a sus dueños a inscribirlos.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Cada agente tiene nombre, nivel y una persona que responde por él.</span><span data-l="en">Every agent has a name, a tier and a human who answers for it.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Las credenciales de tus sistemas nunca salen de Agente Pass.</span><span data-l="en">Your systems' credentials never leave Agente Pass.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Cada llamada queda registrada con su agente, su responsable y su motivo.</span><span data-l="en">Every call is logged with its agent, its owner and its reason.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Al desvincular a la persona, sus agentes quedan fuera en el mismo momento.</span><span data-l="en">When a person leaves, their agents are cut off at that moment.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Descubre los agentes ya conectados a Google Workspace o Microsoft 365 e invita a sus dueños a inscribirlos.</span><span data-l="en">It finds agents already connected to Google Workspace or Microsoft 365 and invites their owners to enroll them.</span></span></li>
       </ul>
     </article>
   </div>
@@ -459,73 +528,75 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
 
 <section id="capas">
   <div class="section-head col">
-    <span class="eyebrow" style="color: var(--on-sky)">Cómo protege</span>
-    <h2 class="page-title">Seis capas entre el agente y tus sistemas.</h2>
+    <span class="eyebrow on-sky"><span data-l="es">Cómo protege</span><span data-l="en">How it protects</span></span>
+    <h2 class="page-title"><span data-l="es">Seis capas entre el agente y tus sistemas.</span><span data-l="en">Six layers between the agent and your systems.</span></h2>
   </div>
   <div class="layers">
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-id"/></svg></div>
-      <h3>Pasaporte</h3>
-      <p>Identidad firmada, ligada a una persona responsable. En cada acción, tus sistemas saben por quién actúa el agente y lo verifican sin preguntarle a nadie.</p>
-      <p class="proof">JWT ES256 · delegación por acción (RFC 8693)</p>
+      <h3><span data-l="es">Pasaporte</span><span data-l="en">Passport</span></h3>
+      <p><span data-l="es">Identidad firmada, ligada a una persona responsable. En cada acción, tus sistemas saben por quién actúa el agente y lo verifican sin preguntarle a nadie.</span><span data-l="en">A signed identity tied to a responsible human. On every action, your systems know who the agent acts for and can verify it without asking anyone.</span></p>
+      <p class="proof"><span data-l="es">JWT ES256 · delegación por acción (RFC 8693)</span><span data-l="en">ES256 JWT · per-action delegation (RFC 8693)</span></p>
     </article>
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-key"/></svg></div>
-      <h3>Acceso por nivel</h3>
-      <p>Solo lo que su jefatura aprobó. De Observador a Autónomo, y nunca más de lo que permite el modelo que usa.</p>
-      <p class="proof">Niveles 0 a 3 · techo por proveedor de modelo</p>
+      <h3><span data-l="es">Acceso por nivel</span><span data-l="en">Tiered access</span></h3>
+      <p><span data-l="es">Solo lo que su jefatura aprobó. De Observador a Autónomo, y nunca más de lo que permite el modelo que usa.</span><span data-l="en">Only what its manager approved. From Observer to Autonomous, and never more than the AI model it uses allows.</span></p>
+      <p class="proof"><span data-l="es">Niveles 0 a 3 · techo por proveedor de modelo</span><span data-l="en">Tiers 0 to 3 · ceiling per model provider</span></p>
     </article>
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-lock"/></svg></div>
-      <h3>Bóveda</h3>
-      <p>El agente usa tus sistemas, pero nunca tiene sus credenciales. Con Vault, cada credencial dura minutos y leer y escribir usan claves distintas.</p>
-      <p class="proof">Credenciales temporales con HashiCorp Vault u OpenBao</p>
+      <h3><span data-l="es">Bóveda</span><span data-l="en">Vault</span></h3>
+      <p><span data-l="es">El agente usa tus sistemas, pero nunca tiene sus credenciales. Con Vault, cada credencial dura minutos y leer y escribir usan claves distintas.</span><span data-l="en">The agent uses your systems but never holds their credentials. With Vault, each credential lasts minutes and reads and writes use different keys.</span></p>
+      <p class="proof"><span data-l="es">Credenciales temporales con HashiCorp Vault u OpenBao</span><span data-l="en">Short-lived credentials with HashiCorp Vault or OpenBao</span></p>
     </article>
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-pen"/></svg></div>
-      <h3>Firma</h3>
-      <p>Una persona firma lo delicado viendo qué se hará y por qué. La firma vale una vez, para esos datos exactos.</p>
-      <p class="proof">Aprobación ligada al hash de los argumentos</p>
+      <h3><span data-l="es">Firma</span><span data-l="en">Sign-off</span></h3>
+      <p><span data-l="es">Una persona firma lo delicado viendo qué se hará y por qué. La firma vale una vez, para esos datos exactos.</span><span data-l="en">A person signs off sensitive actions, seeing what will happen and why. The sign-off is valid once, for that exact data.</span></p>
+      <p class="proof"><span data-l="es">Aprobación ligada al hash de los argumentos</span><span data-l="en">Approval bound to the arguments' hash</span></p>
     </article>
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-shield"/></svg></div>
-      <h3>Escudo de datos</h3>
-      <p>Oculta lo que el modelo del agente no debe ver, como un RUT o una tarjeta, y avisa si un dato trae instrucciones escondidas.</p>
-      <p class="proof">DLP con RUT y Luhn · detección de inyección</p>
+      <h3><span data-l="es">Escudo de datos</span><span data-l="en">Data shield</span></h3>
+      <p><span data-l="es">Oculta lo que el modelo del agente no debe ver, como un RUT o una tarjeta, y avisa si un dato trae instrucciones escondidas.</span><span data-l="en">Hides what the agent's AI model shouldn't see, like a national ID or a card number, and warns when data carries hidden instructions.</span></p>
+      <p class="proof"><span data-l="es">DLP con RUT y Luhn · detección de inyección</span><span data-l="en">DLP with check digits · injection detection</span></p>
     </article>
     <article class="glass layer">
       <div class="ico" aria-hidden="true"><svg><use href="#i-list"/></svg></div>
-      <h3>Bitácora</h3>
-      <p>Registro a prueba de alteraciones. Si alguien borra o cambia una fila, la cadena lo delata.</p>
-      <p class="proof">Cadena de hashes verificable</p>
+      <h3><span data-l="es">Bitácora</span><span data-l="en">Audit log</span></h3>
+      <p><span data-l="es">Registro a prueba de alteraciones. Si alguien borra o cambia una fila, la cadena lo delata.</span><span data-l="en">A tamper-evident record. If someone deletes or edits a row, the chain gives it away.</span></p>
+      <p class="proof"><span data-l="es">Cadena de hashes verificable</span><span data-l="en">Verifiable hash chain</span></p>
     </article>
   </div>
   <div class="glass note">
-    <span class="status ok">Funcionando hoy</span>
-    <span class="small">Las seis capas corren en la versión actual. Lo que viene está más abajo, en la hoja de ruta.</span>
+    <span class="status ok"><span data-l="es">Funcionando hoy</span><span data-l="en">Working today</span></span>
+    <span class="small"><span data-l="es">Las seis capas corren en la versión actual. Lo que viene está más abajo, en la hoja de ruta.</span><span data-l="en">All six layers run in the current version. What's next is below, in the roadmap.</span></span>
   </div>
 </section>
 
 <section id="pasos">
   <div class="section-head col">
-    <span class="eyebrow" style="color: var(--on-sky)">Cómo entra un agente</span>
-    <h2 class="page-title">Entra como entra una persona nueva: <em>con jefatura y permisos.</em></h2>
+    <span class="eyebrow on-sky"><span data-l="es">Cómo entra un agente</span><span data-l="en">How an agent gets in</span></span>
+    <h2 class="page-title"><span data-l="es">Entra como entra una persona nueva: <em>con jefatura y permisos.</em></span><span data-l="en">It joins like a new hire: <em>with a manager and permissions.</em></span></h2>
   </div>
   <div class="steps-grid">
     <ol class="glass steps">
-      <li><div><strong>La persona inscribe su agente</strong><span>Le pone nombre, dice qué modelo usa y acepta el acuerdo de uso responsable.</span></div></li>
-      <li><div><strong>Su jefatura lo aprueba</strong><span>Elige el nivel y los sistemas que puede usar. Nadie aprueba su propio agente.</span></div></li>
-      <li><div><strong>El agente recibe su llave</strong><span>Se muestra una sola vez y se conecta con una línea, por MCP.</span></div></li>
-      <li><div><strong>Cada llamada pasa por tus reglas</strong><span>Lo permitido corre solo. Lo delicado espera firma. Lo prohibido se bloquea con su motivo.</span></div></li>
-      <li><div><strong>Se recertifica o se va</strong><span>La llave vence y la persona confirma cada 90 días que el agente sigue haciendo falta.</span></div></li>
+      <li><div><strong><span data-l="es">La persona inscribe su agente</span><span data-l="en">The person enrolls their agent</span></strong><span><span data-l="es">Le pone nombre, dice qué modelo usa y acepta el acuerdo de uso responsable.</span><span data-l="en">They name it, say which model it uses and accept the responsible use agreement.</span></span></div></li>
+      <li><div><strong><span data-l="es">Su jefatura lo aprueba</span><span data-l="en">Their manager approves it</span></strong><span><span data-l="es">Elige el nivel y los sistemas que puede usar. Nadie aprueba su propio agente.</span><span data-l="en">They choose the tier and the systems it can use. Nobody approves their own agent.</span></span></div></li>
+      <li><div><strong><span data-l="es">El agente recibe su llave</span><span data-l="en">The agent gets its key</span></strong><span><span data-l="es">Se muestra una sola vez y se conecta con una línea, por MCP.</span><span data-l="en">It's shown once and connects with one line, over MCP.</span></span></div></li>
+      <li><div><strong><span data-l="es">Cada llamada pasa por tus reglas</span><span data-l="en">Every call goes through your rules</span></strong><span><span data-l="es">Lo permitido corre solo. Lo delicado espera firma. Lo prohibido se bloquea con su motivo.</span><span data-l="en">What's allowed just runs. What's sensitive waits for sign-off. What's forbidden is blocked, with the reason.</span></span></div></li>
+      <li><div><strong><span data-l="es">Se recertifica o se va</span><span data-l="en">It's reviewed, or it goes</span></strong><span><span data-l="es">La llave vence y la persona confirma cada 90 días que el agente sigue haciendo falta.</span><span data-l="en">The key expires, and every 90 days the owner confirms the agent is still needed.</span></span></div></li>
     </ol>
     <article class="glass code-card">
-      <span class="eyebrow">Una línea para conectarlo · probado con Claude Code</span>
-<pre class="code" tabindex="0">claude mcp add --transport http tu-empresa \
+      <span class="eyebrow"><span data-l="es">Una línea para conectarlo · probado con Claude Code</span><span data-l="en">One line to connect it · tested with Claude Code</span></span>
+<div data-l="es"><pre class="code" tabindex="0">claude mcp add --transport http tu-empresa \
   https://agentes.tuempresa.cl/mcp \
-  --header "Authorization: Bearer agw_…"</pre>
-      <span class="eyebrow" style="padding-top: 6px">Una regla se lee así</span>
-<pre class="code" tabindex="0"><span class="k">- id:</span> pagos-altos-con-jefatura
+  --header "Authorization: Bearer agw_…"</pre></div><div data-l="en"><pre class="code" tabindex="0">claude mcp add --transport http your-company \
+  https://agents.your-company.com/mcp \
+  --header "Authorization: Bearer agw_…"</pre></div>
+      <span class="eyebrow" style="padding-top: 6px"><span data-l="es">Una regla se lee así</span><span data-l="en">A rule reads like this</span></span>
+<div data-l="es"><pre class="code" tabindex="0"><span class="k">- id:</span> pagos-altos-con-jefatura
   <span class="k">description:</span> Pagos sobre $500.000 los
     aprueba la jefatura del responsable.
   <span class="k">when:</span>
@@ -534,86 +605,95 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
     <span class="k">args:</span>
       - { path: monto, op: gt, value: 500000 }
   <span class="k">effect:</span> require_approval
-  <span class="k">approver:</span> manager</pre>
-      <p class="caption">Las políticas viven en un archivo versionado: cada cambio pasa por revisión y queda en el historial. Una regla nueva puede partir en modo observación para medir su efecto antes de aplicarla.</p>
+  <span class="k">approver:</span> manager</pre></div><div data-l="en"><pre class="code" tabindex="0"><span class="k">- id:</span> large-payments-need-manager
+  <span class="k">description:</span> Payments over $500,000
+    need the owner's manager.
+  <span class="k">when:</span>
+    <span class="k">connectors:</span> [finance]
+    <span class="k">tools:</span> [issue_payment]
+    <span class="k">args:</span>
+      - { path: amount, op: gt, value: 500000 }
+  <span class="k">effect:</span> require_approval
+  <span class="k">approver:</span> manager</pre></div>
+      <p class="caption"><span data-l="es">Las políticas viven en un archivo versionado: cada cambio pasa por revisión y queda en el historial. Una regla nueva puede partir en modo observación para medir su efecto antes de aplicarla.</span><span data-l="en">Policies live in a versioned file: every change is reviewed and kept in history. A new rule can start in observe mode to measure its effect before it's enforced.</span></p>
     </article>
   </div>
 </section>
 
 <section id="terceros">
   <div class="section-head col">
-    <span class="eyebrow" style="color: var(--on-sky)">Agentes de terceros</span>
-    <h2 class="page-title">El agente de tu proveedor también puede trabajar contigo. <em>Con llave propia.</em></h2>
+    <span class="eyebrow on-sky"><span data-l="es">Agentes de terceros</span><span data-l="en">Vendor agents</span></span>
+    <h2 class="page-title"><span data-l="es">El agente de tu proveedor también puede trabajar contigo. <em>Con llave propia.</em></span><span data-l="en">Your vendor's agent can work with you too. <em>With its own key.</em></span></h2>
   </div>
   <div class="third">
     <article class="glass panel">
-      <p class="conclusion">Una agencia, un contador externo o el agente de un cliente entran patrocinados por alguien de tu equipo, que responde por ellos.</p>
+      <p class="conclusion"><span data-l="es">Una agencia, un contador externo o el agente de un cliente entran patrocinados por alguien de tu equipo, que responde por ellos.</span><span data-l="en">An agency, an outside accountant or a client's agent comes in sponsored by someone on your team, who answers for it.</span></p>
       <ul>
-        <li><svg aria-hidden="true"><use href="#i-key"/></svg><span>Su token queda ligado a su propia clave. Si lo copian o lo pasan a otro agente, no sirve.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-shield"/></svg><span>Los aprueba Seguridad, no la jefatura del patrocinador.</span></li>
-        <li><svg aria-hidden="true"><use href="#i-clock"/></svg><span>Su llave dura 7 días y su acceso se revisa cada 30.</span></li>
+        <li><svg aria-hidden="true"><use href="#i-key"/></svg><span><span data-l="es">Su token queda ligado a su propia clave. Si lo copian o lo pasan a otro agente, no sirve.</span><span data-l="en">Its token is bound to its own key. If it's copied or handed to another agent, it's useless.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-shield"/></svg><span><span data-l="es">Los aprueba Seguridad, no la jefatura del patrocinador.</span><span data-l="en">Security approves them, not the sponsor's manager.</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-clock"/></svg><span><span data-l="es">Su llave dura 7 días y su acceso se revisa cada 30.</span><span data-l="en">Its key lasts 7 days and its access is reviewed every 30.</span></span></li>
       </ul>
     </article>
     <article class="glass panel">
-      <span class="eyebrow">Ficha de un tercero</span>
+      <span class="eyebrow"><span data-l="es">Ficha de un tercero</span><span data-l="en">A vendor agent's profile</span></span>
       <dl class="kv">
-        <dt>Agente</dt><dd>Agente de Agencia Pulso</dd>
-        <dt>Patrocina</dt><dd>Felipe Rojas · Marketing</dd>
-        <dt>Nivel máximo</dt><dd>1 · Asistente</dd>
-        <dt>Ve hasta</dt><dd>Datos internos</dd>
-        <dt>Llave</dt><dd>Ligada a su clave (DPoP)</dd>
-        <dt>Correos a nombre tuyo</dt><dd>No puede enviarlos</dd>
+        <dt><span data-l="es">Agente</span><span data-l="en">Agent</span></dt><dd><span data-l="es">Agente de Agencia Pulso</span><span data-l="en">Agencia Pulso's agent</span></dd>
+        <dt><span data-l="es">Patrocina</span><span data-l="en">Sponsor</span></dt><dd><span data-l="es">Felipe Rojas · Marketing</span><span data-l="en">Felipe Rojas · Marketing</span></dd>
+        <dt><span data-l="es">Nivel máximo</span><span data-l="en">Max tier</span></dt><dd><span data-l="es">1 · Asistente</span><span data-l="en">1 · Assistant</span></dd>
+        <dt><span data-l="es">Ve hasta</span><span data-l="en">Sees up to</span></dt><dd><span data-l="es">Datos internos</span><span data-l="en">Internal data</span></dd>
+        <dt><span data-l="es">Llave</span><span data-l="en">Key</span></dt><dd><span data-l="es">Ligada a su clave (DPoP)</span><span data-l="en">Bound to its key (DPoP)</span></dd>
+        <dt><span data-l="es">Correos a nombre tuyo</span><span data-l="en">Email on your behalf</span></dt><dd><span data-l="es">No puede enviarlos</span><span data-l="en">Not allowed</span></dd>
       </dl>
-      <p class="caption">Ejemplo ilustrativo. Basado en RFC 9449 y RFC 7638.</p>
+      <p class="caption"><span data-l="es">Ejemplo ilustrativo. Basado en RFC 9449 y RFC 7638.</span><span data-l="en">Illustrative example. Based on RFC 9449 and RFC 7638.</span></p>
     </article>
   </div>
 </section>
 
 <section id="areas">
   <div class="section-head col">
-    <span class="eyebrow" style="color: var(--on-sky)">Para cualquier rubro</span>
-    <h2 class="page-title">Una regla para cada área. <em>Escrita como la dirías.</em></h2>
+    <span class="eyebrow on-sky"><span data-l="es">Para cualquier rubro</span><span data-l="en">For any industry</span></span>
+    <h2 class="page-title"><span data-l="es">Una regla para cada área. <em>Escrita como la dirías.</em></span><span data-l="en">A rule for every team. <em>Written the way you'd say it.</em></span></h2>
   </div>
   <div class="rules">
-    <article class="glass rule"><span class="eyebrow">Finanzas</span><p class="conclusion">Los pagos sobre $500.000 los aprueba la jefatura del responsable.</p><span class="status warn">Espera firma</span></article>
-    <article class="glass rule"><span class="eyebrow">Ventas</span><p class="conclusion">Un correo a alguien fuera de la empresa espera la firma de quien responde por el agente.</p><span class="status warn">Espera firma</span></article>
-    <article class="glass rule"><span class="eyebrow">Clientes</span><p class="conclusion">Ningún agente elimina la ficha de un cliente. Eso lo hace una persona.</p><span class="status bad">Bloqueado</span></article>
-    <article class="glass rule"><span class="eyebrow">Operaciones</span><p class="conclusion">Fuera del horario laboral, cualquier cambio espera firma.</p><span class="status warn">Espera firma</span></article>
-    <article class="glass rule"><span class="eyebrow">Datos sensibles</span><p class="conclusion">Solo los agentes de personas de Finanzas o Comercial entran al sistema de finanzas.</p><span class="status bad">Bloqueado</span></article>
-    <article class="glass rule"><span class="eyebrow">Terceros</span><p class="conclusion">Los agentes de proveedores no envían correos a nombre de la empresa. Intentarlo los suspende en el acto.</p><span class="status bad">Suspende al agente</span></article>
+    <article class="glass rule"><span class="eyebrow"><span data-l="es">Finanzas</span><span data-l="en">Finance</span></span><p class="conclusion"><span data-l="es">Los pagos sobre $500.000 los aprueba la jefatura del responsable.</span><span data-l="en">Payments over $500,000 need the owner's manager.</span></p><span class="status warn"><span data-l="es">Espera firma</span><span data-l="en">Waits for sign-off</span></span></article>
+    <article class="glass rule"><span class="eyebrow"><span data-l="es">Ventas</span><span data-l="en">Sales</span></span><p class="conclusion"><span data-l="es">Un correo a alguien fuera de la empresa espera la firma de quien responde por el agente.</span><span data-l="en">An email to someone outside the company waits for the agent's owner to sign off.</span></p><span class="status warn"><span data-l="es">Espera firma</span><span data-l="en">Waits for sign-off</span></span></article>
+    <article class="glass rule"><span class="eyebrow"><span data-l="es">Clientes</span><span data-l="en">Customers</span></span><p class="conclusion"><span data-l="es">Ningún agente elimina la ficha de un cliente. Eso lo hace una persona.</span><span data-l="en">No agent deletes a customer record. A person does that.</span></p><span class="status bad"><span data-l="es">Bloqueado</span><span data-l="en">Blocked</span></span></article>
+    <article class="glass rule"><span class="eyebrow"><span data-l="es">Operaciones</span><span data-l="en">Operations</span></span><p class="conclusion"><span data-l="es">Fuera del horario laboral, cualquier cambio espera firma.</span><span data-l="en">Outside business hours, any change waits for sign-off.</span></p><span class="status warn"><span data-l="es">Espera firma</span><span data-l="en">Waits for sign-off</span></span></article>
+    <article class="glass rule"><span class="eyebrow"><span data-l="es">Datos sensibles</span><span data-l="en">Sensitive data</span></span><p class="conclusion"><span data-l="es">Solo los agentes de personas de Finanzas o Comercial entran al sistema de finanzas.</span><span data-l="en">Only agents of people in Finance or Sales can reach the finance system.</span></p><span class="status bad"><span data-l="es">Bloqueado</span><span data-l="en">Blocked</span></span></article>
+    <article class="glass rule"><span class="eyebrow"><span data-l="es">Terceros</span><span data-l="en">Vendors</span></span><p class="conclusion"><span data-l="es">Los agentes de proveedores no envían correos a nombre de la empresa. Intentarlo los suspende en el acto.</span><span data-l="en">Vendor agents don't send email on the company's behalf. Trying suspends them on the spot.</span></p><span class="status bad"><span data-l="es">Suspende al agente</span><span data-l="en">Suspends the agent</span></span></article>
   </div>
   <div class="glass note">
-    <span class="small">Son las reglas de ejemplo que trae Agente Pass, y las cambias en un archivo. Se conecta a cualquier sistema que tenga un servidor MCP: CRM, ERP, correo o documentos. Si tienes un hotel, Soul suma un agente propio del rubro que usa la misma puerta.</span>
+    <span class="small"><span data-l="es">Son las reglas de ejemplo que trae Agente Pass, y las cambias en un archivo. Se conecta a cualquier sistema que tenga un servidor MCP: CRM, ERP, correo o documentos. Si tienes un hotel, Soul suma un agente propio del rubro que usa la misma puerta.</span><span data-l="en">These are the sample rules Agente Pass ships with, and you change them in a file. It connects to any system with an MCP server: CRM, ERP, email or documents. If you run a hotel, Soul adds an industry agent that uses the same door.</span></span>
   </div>
 </section>
 
 <section id="planes">
   <div class="section-head col">
-    <span class="eyebrow" style="color: var(--on-sky)">Planes</span>
-    <h2 class="page-title">Pagas por agente conectado, al mes.</h2>
+    <span class="eyebrow on-sky"><span data-l="es">Planes</span><span data-l="en">Plans</span></span>
+    <h2 class="page-title"><span data-l="es">Pagas por agente conectado, al mes.</span><span data-l="en">You pay per connected agent, per month.</span></h2>
   </div>
   <div class="plans">
     <article class="glass plan featured">
-      <div class="plan-name">pass <span>pyme</span></div>
-      <p class="small">Para el dueño que quiere ordenar los agentes de su equipo sin un área de TI.</p>
+      <div class="plan-name">pass <span><span data-l="es">pyme</span><span data-l="en">business</span></span></div>
+      <p class="small"><span data-l="es">Para el dueño que quiere ordenar los agentes de su equipo sin un área de TI.</span><span data-l="en">For owners who want their team's agents in order without an IT department.</span></p>
       <ul>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Las seis capas de protección</span></li>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Te ayudamos a conectar tus primeros sistemas</span></li>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Reglas de ejemplo para partir</span></li>
-        <li class="soon"><svg aria-hidden="true"><use href="#i-clock"/></svg><span>Configuración por tu cuenta, próximamente</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Las seis capas de protección</span><span data-l="en">All six layers of protection</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Te ayudamos a conectar tus primeros sistemas</span><span data-l="en">We help you connect your first systems</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Reglas de ejemplo para partir</span><span data-l="en">Sample rules to get started</span></span></li>
+        <li class="soon"><svg aria-hidden="true"><use href="#i-clock"/></svg><span><span data-l="es">Configuración por tu cuenta, próximamente</span><span data-l="en">Self-service setup, coming soon</span></span></li>
       </ul>
-      <a class="btn dark" href="#demo">Pedir una demo</a>
+      <a class="btn dark" href="#demo"><span data-l="es">Pedir una demo</span><span data-l="en">Book a demo</span></a>
     </article>
     <article class="glass plan">
-      <div class="plan-name">pass <span>empresa</span></div>
-      <p class="small">Para equipos de TI y seguridad que necesitan integrarlo a su operación.</p>
+      <div class="plan-name">pass <span><span data-l="es">empresa</span><span data-l="en">enterprise</span></span></div>
+      <p class="small"><span data-l="es">Para equipos de TI y seguridad que necesitan integrarlo a su operación.</span><span data-l="en">For IT and security teams that need it in their operations.</span></p>
       <ul>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Políticas como código, en tu repositorio</span></li>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Instalación en tu propia nube, con Docker</span></li>
-        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span>Bitácora en JSON por línea, lista para tu SIEM</span></li>
-        <li class="soon"><svg aria-hidden="true"><use href="#i-clock"/></svg><span>SSO y bajas automáticas, próximamente</span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Políticas como código, en tu repositorio</span><span data-l="en">Policy as code, in your repository</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Instalación en tu propia nube, con Docker</span><span data-l="en">Runs in your own cloud, with Docker</span></span></li>
+        <li><svg aria-hidden="true"><use href="#i-check"/></svg><span><span data-l="es">Bitácora en JSON por línea, lista para tu SIEM</span><span data-l="en">Audit log as JSON lines, ready for your SIEM</span></span></li>
+        <li class="soon"><svg aria-hidden="true"><use href="#i-clock"/></svg><span><span data-l="es">SSO y bajas automáticas, próximamente</span><span data-l="en">SSO and automatic offboarding, coming soon</span></span></li>
       </ul>
-      <a class="btn light" href="#demo">Conversar</a>
+      <a class="btn light" href="#demo"><span data-l="es">Conversar</span><span data-l="en">Let's talk</span></a>
     </article>
   </div>
 </section>
@@ -621,24 +701,24 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
 <section id="ruta">
   <div class="road">
     <article class="glass panel">
-      <span class="eyebrow">Hoja de ruta</span>
-      <p class="conclusion">Lo que sigue, en este orden.</p>
+      <span class="eyebrow"><span data-l="es">Hoja de ruta</span><span data-l="en">Roadmap</span></span>
+      <p class="conclusion"><span data-l="es">Lo que sigue, en este orden.</span><span data-l="en">What's next, in this order.</span></p>
       <ul>
-        <li><span>Inicio de sesión OAuth 2.1 para ChatGPT y Claude web</span><span class="status warn">Próximo</span></li>
-        <li><span>Firmas de un toque por WhatsApp y Slack</span><span class="status warn">Próximo</span></li>
-        <li><span>Bóveda que configura el propio cliente</span><span class="status warn">Próximo</span></li>
-        <li><span>SSO y bajas automáticas desde tu proveedor de identidad</span><span class="status warn">Próximo</span></li>
+        <li><span><span data-l="es">Inicio de sesión OAuth 2.1 para ChatGPT y Claude web</span><span data-l="en">OAuth 2.1 sign-in for ChatGPT and Claude on the web</span></span><span class="status warn"><span data-l="es">Próximo</span><span data-l="en">Next</span></span></li>
+        <li><span><span data-l="es">Firmas de un toque por WhatsApp y Slack</span><span data-l="en">One-tap sign-offs on WhatsApp and Slack</span></span><span class="status warn"><span data-l="es">Próximo</span><span data-l="en">Next</span></span></li>
+        <li><span><span data-l="es">Bóveda que configura el propio cliente</span><span data-l="en">A vault customers set up themselves</span></span><span class="status warn"><span data-l="es">Próximo</span><span data-l="en">Next</span></span></li>
+        <li><span><span data-l="es">SSO y bajas automáticas desde tu proveedor de identidad</span><span data-l="en">SSO and automatic offboarding from your identity provider</span></span><span class="status warn"><span data-l="es">Próximo</span><span data-l="en">Next</span></span></li>
       </ul>
     </article>
     <article class="glass panel">
-      <span class="eyebrow">Pensado para cumplir</span>
-      <p class="conclusion">Cada acción tiene responsable y registro: la base de la responsabilidad demostrada.</p>
+      <span class="eyebrow"><span data-l="es">Pensado para cumplir</span><span data-l="en">Built for compliance</span></span>
+      <p class="conclusion"><span data-l="es">Cada acción tiene responsable y registro: la base de la responsabilidad demostrada.</span><span data-l="en">Every action has an owner and a record: the basis of demonstrable accountability.</span></p>
       <ul>
-        <li><span>Ley 21.719 de protección de datos personales, Chile</span><span class="caption tab-nums">Dic 2026</span></li>
-        <li><span>OWASP Top 10 para aplicaciones LLM</span><span class="caption">Referencia</span></li>
-        <li><span>NIST AI RMF e ISO/IEC 42001</span><span class="caption">Referencia</span></li>
+        <li><span><span data-l="es">Ley 21.719 de protección de datos personales, Chile</span><span data-l="en">Chile's Law 21.719 on personal data protection</span></span><span class="caption tab-nums"><span data-l="es">Dic 2026</span><span data-l="en">Dec 2026</span></span></li>
+        <li><span><span data-l="es">OWASP Top 10 para aplicaciones LLM</span><span data-l="en">OWASP Top 10 for LLM applications</span></span><span class="caption"><span data-l="es">Referencia</span><span data-l="en">Reference</span></span></li>
+        <li><span><span data-l="es">NIST AI RMF e ISO/IEC 42001</span><span data-l="en">NIST AI RMF and ISO/IEC 42001</span></span><span class="caption"><span data-l="es">Referencia</span><span data-l="en">Reference</span></span></li>
       </ul>
-      <p class="caption">Son marcos de referencia del diseño, no certificaciones.</p>
+      <p class="caption"><span data-l="es">Son marcos de referencia del diseño, no certificaciones.</span><span data-l="en">These are design references, not certifications.</span></p>
     </article>
   </div>
 </section>
@@ -646,46 +726,46 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
 <section id="demo">
   <article class="glass contact">
     <div style="display: grid; gap: 14px; align-content: start; min-width: 0">
-      <span class="eyebrow">Pedir una demo</span>
-      <h2 class="page-title" style="color: var(--ink)">Trae un agente de tu equipo. <em>Lo conectamos en la llamada.</em></h2>
-      <p class="small">En 30 minutos inscribimos un agente real, le damos acceso a un sistema de prueba y firmas tu primera acción.</p>
+      <span class="eyebrow"><span data-l="es">Pedir una demo</span><span data-l="en">Book a demo</span></span>
+      <h2 class="page-title" style="color: var(--ink); text-shadow: none"><span data-l="es">Trae un agente de tu equipo. <em>Lo conectamos en la llamada.</em></span><span data-l="en">Bring an agent from your team. <em>We'll connect it on the call.</em></span></h2>
+      <p class="small"><span data-l="es">En 30 minutos inscribimos un agente real, le damos acceso a un sistema de prueba y firmas tu primera acción.</span><span data-l="en">In 30 minutes we enroll a real agent, give it access to a test system, and you sign off your first action.</span></p>
     </div>
     <div style="min-width: 0">
       <form id="form" novalidate>
         <div class="two">
-          <div class="field"><label for="f-name">Tu nombre</label><input id="f-name" name="name" autocomplete="name" placeholder="Paula Soto" required></div>
-          <div class="field"><label for="f-company">Empresa</label><input id="f-company" name="company" autocomplete="organization" placeholder="Comercial Andes SpA" required></div>
+          <div class="field"><label for="f-name"><span data-l="es">Tu nombre</span><span data-l="en">Your name</span></label><input id="f-name" name="name" autocomplete="name" data-ph-es="Paula Soto" data-ph-en="Paula Soto" required></div>
+          <div class="field"><label for="f-company"><span data-l="es">Empresa</span><span data-l="en">Company</span></label><input id="f-company" name="company" autocomplete="organization" data-ph-es="Comercial Andes SpA" data-ph-en="Andes Trading Co." required></div>
         </div>
-        <div class="field"><label for="f-email">Correo</label><input id="f-email" name="email" type="email" autocomplete="email" placeholder="paula@comercialandes.cl" required></div>
+        <div class="field"><label for="f-email"><span data-l="es">Correo</span><span data-l="en">Email</span></label><input id="f-email" name="email" type="email" autocomplete="email" data-ph-es="paula@comercialandes.cl" data-ph-en="paula@andestrading.com" required></div>
         <fieldset class="field">
-          <legend>Personas que usan agentes</legend>
+          <legend><span data-l="es">Personas que usan agentes</span><span data-l="en">People using agents</span></legend>
           <div class="seg">
-            <input type="radio" name="size" id="s1" value="1 a 10" checked><label for="s1">1 a 10</label>
-            <input type="radio" name="size" id="s2" value="11 a 50"><label for="s2">11 a 50</label>
-            <input type="radio" name="size" id="s3" value="Más de 50"><label for="s3">Más de 50</label>
+            <input type="radio" name="size" id="s1" value="1" checked><label for="s1"><span data-l="es">1 a 10</span><span data-l="en">1 to 10</span></label>
+            <input type="radio" name="size" id="s2" value="2"><label for="s2"><span data-l="es">11 a 50</span><span data-l="en">11 to 50</span></label>
+            <input type="radio" name="size" id="s3" value="3"><label for="s3"><span data-l="es">Más de 50</span><span data-l="en">More than 50</span></label>
           </div>
         </fieldset>
         <fieldset class="field">
-          <legend>Qué agentes usan</legend>
+          <legend><span data-l="es">Qué agentes usan</span><span data-l="en">Which agents they use</span></legend>
           <div class="picks">
             <input type="checkbox" id="a1" value="Claude"><label class="chip" for="a1">Claude</label>
             <input type="checkbox" id="a2" value="ChatGPT"><label class="chip" for="a2">ChatGPT</label>
             <input type="checkbox" id="a3" value="Cursor"><label class="chip" for="a3">Cursor</label>
             <input type="checkbox" id="a4" value="Copilot"><label class="chip" for="a4">Copilot</label>
-            <input type="checkbox" id="a5" value="Agentes de proveedores"><label class="chip" for="a5">De proveedores</label>
+            <input type="checkbox" id="a5" value="vendors"><label class="chip" for="a5"><span data-l="es">De proveedores</span><span data-l="en">Vendors'</span></label>
           </div>
         </fieldset>
-        <div class="field"><label for="f-note">Qué te gustaría que hicieran</label><textarea id="f-note" name="note" placeholder="Que los agentes de ventas preparen cotizaciones y que yo firme antes de enviarlas."></textarea></div>
+        <div class="field"><label for="f-note"><span data-l="es">Qué te gustaría que hicieran</span><span data-l="en">What you'd like them to do</span></label><textarea id="f-note" name="note" data-ph-es="Que los agentes de ventas preparen cotizaciones y que yo firme antes de enviarlas." data-ph-en="Have sales agents draft quotes, and I sign off before they're sent."></textarea></div>
         <p class="error" id="error" hidden></p>
-        <div><button class="btn dark" type="submit">Preparar mi solicitud</button></div>
+        <div><button class="btn dark" type="submit"><span data-l="es">Preparar mi solicitud</span><span data-l="en">Prepare my request</span></button></div>
       </form>
       <div class="done" id="done" hidden>
-        <span class="status ok" style="justify-self: start">Solicitud lista</span>
-        <p class="small" id="done-text">Copia tu solicitud y envíala a tu contacto en Agente Pass.</p>
+        <span class="status ok" style="justify-self: start"><span data-l="es">Solicitud lista</span><span data-l="en">Request ready</span></span>
+        <p class="small" id="done-text"><span data-l="es">Copia tu solicitud y envíala a tu contacto en Agente Pass.</span><span data-l="en">Copy your request and send it to your Agente Pass contact.</span></p>
         <pre id="summary"></pre>
         <div class="row">
-          <button class="btn dark" type="button" id="copy"><svg aria-hidden="true"><use href="#i-copy"/></svg><span id="copy-label">Copiar la solicitud</span></button>
-          <button class="btn light" type="button" id="edit">Editar</button>
+          <button class="btn dark" type="button" id="copy"><svg aria-hidden="true"><use href="#i-copy"/></svg><span id="copy-label"><span data-l="es">Copiar la solicitud</span><span data-l="en">Copy the request</span></span></button>
+          <button class="btn light" type="button" id="edit"><span data-l="es">Editar</span><span data-l="en">Edit</span></button>
         </div>
       </div>
     </div>
@@ -695,103 +775,377 @@ footer .glass { padding: 12px 18px; border-radius: var(--r-pill); font-size: 13.
 </main>
 
 <footer>
-  <span class="glass"><span class="wordmark" style="font-size: 15px">agente pass</span> · Agentes con responsable</span>
-  <span class="glass">Hecho en Chile</span>
+  <span class="glass"><span class="wordmark" style="font-size: 15px">agente pass</span> · <span data-l="es">Agentes con responsable</span><span data-l="en">Agents with a human in charge</span></span>
+  <span class="glass"><span data-l="es">Hecho en Chile</span><span data-l="en">Made in Chile</span></span>
 </footer>
 
 </div>
 
+<div class="skybar glass" id="skybar">
+  <div class="skybar-row">
+    <svg class="sky-ico" id="sky-ico" aria-hidden="true"><use href="#i-sun"/></svg>
+    <span class="sky-label tab-nums" id="sky-label" aria-live="polite"></span>
+    <span class="sky-weather" role="group" data-aria-es="Clima" data-aria-en="Weather">
+      <button type="button" data-weather="clear" data-aria-es="Despejado" data-aria-en="Clear"><svg aria-hidden="true"><use href="#i-sun"/></svg></button>
+      <button type="button" data-weather="cloudy" data-aria-es="Nublado" data-aria-en="Cloudy"><svg aria-hidden="true"><use href="#i-cloud"/></svg></button>
+      <button type="button" data-weather="rain" data-aria-es="Lluvia" data-aria-en="Rain"><svg aria-hidden="true"><use href="#i-rain"/></svg></button>
+    </span>
+    <button type="button" class="sky-time-btn" id="sky-time-btn" aria-expanded="false" aria-controls="sky-time" data-aria-es="Cambiar la hora del cielo" data-aria-en="Change the sky's time"><svg aria-hidden="true"><use href="#i-clock"/></svg></button>
+  </div>
+  <div class="skybar-time" id="sky-time" hidden>
+    <label for="sky-hour" class="caption"><span data-l="es">Mira el cielo a otra hora</span><span data-l="en">See the sky at another time</span></label>
+    <input type="range" id="sky-hour" min="0" max="23.75" step="0.25">
+    <button type="button" class="sky-now" id="sky-now"><span data-l="es">Ahora</span><span data-l="en">Now</span></button>
+  </div>
+</div>
+
 <script>
 (() => {
-  // Correo de contacto que se muestra al preparar la solicitud. Vacío: se pide enviarla al contacto en Agente Pass.
-  const CONTACT = "";
+  const root = document.documentElement;
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+    set(key, value) { try { localStorage.setItem(key, value); } catch { /* sin almacenamiento */ } },
+  };
 
-  // Demo de la firma: resuelve la acción y suma una fila sellada a la bitácora.
-  const act = document.getElementById("act");
-  const log = document.getElementById("log");
-  const hex = () => Array.from(crypto.getRandomValues(new Uint8Array(2)), b => b.toString(16).padStart(2, "0")).join("");
-  const now = () => new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
-  const addRow = text => {
+  // ── Idioma ──────────────────────────────────────────────
+  const T = {
+    es: {
+      signed: "Firmado",
+      signedLine: "El pago a Imprenta Sur se emitió una sola vez, por $1.200.000 exactos.",
+      signedWhy: "Firmó Rodrigo Paz, jefe de Finanzas.",
+      row1: "Rodrigo firmó el pago a Imprenta Sur",
+      row2: "Emitió el pago una sola vez",
+      noName: "Falta tu nombre.",
+      noCompany: "Falta el nombre de tu empresa.",
+      badEmail: "Revisa tu correo: debe tener la forma nombre@empresa.cl.",
+      hello: "Hola, quiero una demo de Agente Pass.",
+      name: "Nombre", company: "Empresa", email: "Correo", people: "Personas que usan agentes", agents: "Agentes", goal: "Lo que buscamos",
+      sizes: { 1: "1 a 10", 2: "11 a 50", 3: "Más de 50" },
+      vendors: "Agentes de proveedores", tbd: "Por definir",
+      copied: "Copiada", selected: "Seleccionada: cópiala con tu teclado", copy: "Copiar la solicitud",
+      weather: { clear: "Despejado", cloudy: "Nublado", rain: "Lluvia" },
+      showing: "Cielo de las",
+      locale: "es-CL",
+    },
+    en: {
+      signed: "Signed",
+      signedLine: "The payment to Imprenta Sur was issued once, for exactly $1,200,000.",
+      signedWhy: "Signed off by Rodrigo Paz, head of Finance.",
+      row1: "Rodrigo signed off the payment to Imprenta Sur",
+      row2: "Issued the payment once",
+      noName: "Your name is missing.",
+      noCompany: "Your company's name is missing.",
+      badEmail: "Check your email: it should look like name@company.com.",
+      hello: "Hi, I'd like a demo of Agente Pass.",
+      name: "Name", company: "Company", email: "Email", people: "People using agents", agents: "Agents", goal: "What we're after",
+      sizes: { 1: "1 to 10", 2: "11 to 50", 3: "More than 50" },
+      vendors: "Vendor agents", tbd: "To be decided",
+      copied: "Copied", selected: "Selected: copy it with your keyboard", copy: "Copy the request",
+      weather: { clear: "Clear", cloudy: "Cloudy", rain: "Rain" },
+      showing: "Sky at",
+      locale: "en-US",
+    },
+  };
+  let lang = store.get("ap.lang") || ((navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en");
+  const t = () => T[lang];
+
+  function applyLang(next) {
+    lang = next === "en" ? "en" : "es";
+    root.dataset.lang = lang;
+    root.lang = lang;
+    for (const b of document.querySelectorAll("[data-set-lang]")) b.setAttribute("aria-pressed", String(b.dataset.setLang === lang));
+    for (const el of document.querySelectorAll("[data-ph-es]")) el.placeholder = el.dataset[lang === "en" ? "phEn" : "phEs"];
+    for (const el of document.querySelectorAll("[data-aria-es]")) el.setAttribute("aria-label", el.dataset[lang === "en" ? "ariaEn" : "ariaEs"]);
+    if (act.getAttribute("aria-pressed") === "true") showSigned();
+    if (!done.hidden) buildSummary();
+    renderSkyLabel();
+  }
+  for (const b of document.querySelectorAll("[data-set-lang]")) {
+    b.addEventListener("click", () => { store.set("ap.lang", b.dataset.setLang); applyLang(b.dataset.setLang); });
+  }
+
+  // ── Demo de la firma ────────────────────────────────────
+  const act = $("act");
+  const log = $("log");
+  const hex = () => Array.from(crypto.getRandomValues(new Uint8Array(2)), (b) => b.toString(16).padStart(2, "0")).join("");
+  const clock = (d = new Date()) => d.toLocaleTimeString(t().locale, { hour: "2-digit", minute: "2-digit", hour12: false });
+  const addRow = (key) => {
     const li = document.createElement("li");
     li.className = "new";
-    li.innerHTML = `<time>${now()}</time><span></span><code>${hex()}…</code>`;
-    li.querySelector("span").textContent = text;
+    li.innerHTML = "<time></time><span></span><code></code>";
+    li.querySelector("time").textContent = clock();
+    li.querySelector("span").textContent = t()[key];
+    li.querySelector("span").dataset.key = key;
+    li.querySelector("code").textContent = `${hex()}…`;
     log.appendChild(li);
     while (log.children.length > 4) log.removeChild(log.firstElementChild);
   };
+  function showSigned() {
+    $("verb").textContent = t().signed;
+    $("act-line").textContent = t().signedLine;
+    $("act-why").textContent = t().signedWhy;
+    for (const span of log.querySelectorAll("span[data-key]")) span.textContent = t()[span.dataset.key];
+  }
   act.addEventListener("click", () => {
     if (act.getAttribute("aria-pressed") === "true") return;
     act.setAttribute("aria-pressed", "true");
-    document.getElementById("verb").textContent = "Firmado";
-    document.getElementById("act-line").textContent = "El pago a Imprenta Sur se emitió una sola vez, por $1.200.000 exactos.";
-    document.getElementById("act-why").textContent = "Firmó Rodrigo Paz, jefe de Finanzas.";
-    addRow("Rodrigo firmó el pago a Imprenta Sur");
-    setTimeout(() => addRow("Emitió el pago una sola vez"), 450);
+    showSigned();
+    addRow("row1");
+    setTimeout(() => addRow("row2"), 450);
   });
 
-  // Formulario: arma la solicitud en la página para copiarla.
-  const form = document.getElementById("form");
-  const done = document.getElementById("done");
-  const error = document.getElementById("error");
-  const summary = document.getElementById("summary");
-  if (CONTACT) document.getElementById("done-text").textContent = `Copia tu solicitud y envíala a ${CONTACT}.`;
-  form.addEventListener("submit", e => {
+  // ── Formulario: arma la solicitud en la página para copiarla ──
+  const form = $("form");
+  const done = $("done");
+  const error = $("error");
+  const summary = $("summary");
+  function buildSummary() {
+    const s = t();
+    const agents = [...form.querySelectorAll(".picks input:checked")].map((i) => (i.value === "vendors" ? s.vendors : i.value));
+    const lines = [
+      s.hello, "",
+      `${s.name}: ${$("f-name").value.trim()}`,
+      `${s.company}: ${$("f-company").value.trim()}`,
+      `${s.email}: ${$("f-email").value.trim()}`,
+      `${s.people}: ${s.sizes[form.querySelector(".seg input:checked").value]}`,
+      `${s.agents}: ${agents.length ? agents.join(", ") : s.tbd}`,
+    ];
+    const note = $("f-note").value.trim();
+    if (note) lines.push(`${s.goal}: ${note}`);
+    summary.textContent = lines.join("\n");
+  }
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const $ = id => document.getElementById(id);
+    const s = t();
     const name = $("f-name").value.trim(), company = $("f-company").value.trim(), email = $("f-email").value.trim();
     if (!name || !company || !email || !$("f-email").checkValidity()) {
-      error.textContent = !name ? "Falta tu nombre." : !company ? "Falta el nombre de tu empresa." : "Revisa tu correo: debe tener la forma nombre@empresa.cl.";
+      error.textContent = !name ? s.noName : !company ? s.noCompany : s.badEmail;
       error.hidden = false;
       return;
     }
     error.hidden = true;
-    const agents = [...form.querySelectorAll(".picks input:checked")].map(i => i.value);
-    const lines = [
-      "Hola, quiero una demo de Agente Pass.",
-      "",
-      `Nombre: ${name}`,
-      `Empresa: ${company}`,
-      `Correo: ${email}`,
-      `Personas que usan agentes: ${form.querySelector(".seg input:checked").value}`,
-      `Agentes: ${agents.length ? agents.join(", ") : "Por definir"}`,
-    ];
-    const note = $("f-note").value.trim();
-    if (note) lines.push(`Lo que buscamos: ${note}`);
-    summary.textContent = lines.join("\n");
+    buildSummary();
     form.hidden = true;
     done.hidden = false;
   });
-  document.getElementById("edit").addEventListener("click", () => { done.hidden = true; form.hidden = false; });
-  document.getElementById("copy").addEventListener("click", async () => {
-    const label = document.getElementById("copy-label");
+  $("edit").addEventListener("click", () => { done.hidden = true; form.hidden = false; });
+  $("copy").addEventListener("click", async () => {
+    const label = $("copy-label");
     try {
       await navigator.clipboard.writeText(summary.textContent);
-      label.textContent = "Copiada";
+      label.textContent = t().copied;
     } catch {
       const range = document.createRange();
       range.selectNodeContents(summary);
       const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
-      label.textContent = "Seleccionada: cópiala con tu teclado";
+      label.textContent = t().selected;
     }
+    setTimeout(() => { label.textContent = t().copy; }, 2500);
   });
 
-  // Estrellas para el cielo de noche.
-  const canvas = document.getElementById("stars");
-  const ctx = canvas.getContext("2d");
-  const seed = Array.from({ length: 140 }, () => [Math.random(), Math.random() * 0.7, Math.random() * 1.1 + 0.3, Math.random() * 0.6 + 0.2]);
-  const draw = () => {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
-    canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr;
-    ctx.scale(dpr, dpr);
-    for (const [x, y, r, a] of seed) {
-      ctx.beginPath();
-      ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
-      ctx.arc(x * innerWidth, y * innerHeight, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  // ── El cielo: sigue la hora del visitante y el clima elegido ──
+  // Horas clave del cielo de Soul: tope, centro y horizonte.
+  const KEYS = [
+    [0, ["#070b1e", "#141b3f", "#27305c"]],
+    [5, ["#0b1230", "#1e2a5a", "#3b3f73"]],
+    [6.5, ["#3f5fae", "#c98fa6", "#f3b98f"]],
+    [8, ["#4f86cf", "#9fc0e6", "#e9dcd2"]],
+    [12, ["#3f83d6", "#86b7ea", "#dfeaf4"]],
+    [16, ["#4a86d2", "#95bde6", "#e6e6e0"]],
+    [18.5, ["#5677bd", "#b79bc0", "#f0b483"]],
+    [19.75, ["#3b4a92", "#a8719a", "#ec9670"]],
+    [21, ["#141c48", "#2f2f66", "#5d4370"]],
+    [24, ["#070b1e", "#141b3f", "#27305c"]],
+  ];
+  const WEATHER = {
+    clear: { grey: 0, cover: 0, clouds: 3, cloudAlpha: 0.32, rain: 0 },
+    cloudy: { grey: 0.42, cover: 0.75, clouds: 10, cloudAlpha: 0.72, rain: 0 },
+    rain: { grey: 0.6, cover: 0.97, clouds: 12, cloudAlpha: 0.85, rain: 1 },
   };
-  draw();
-  addEventListener("resize", draw);
+  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const mix = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
+  const css = (c, a = 1) => `rgba(${c.map((v) => Math.round(v)).join(",")},${a})`;
+  const lum = (c) => {
+    const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const KEY_RGB = KEYS.map(([h, cs]) => [h, cs.map(rgb)]);
+
+  function skyColors(hour, w) {
+    let i = 0;
+    while (i < KEY_RGB.length - 2 && hour >= KEY_RGB[i + 1][0]) i++;
+    const [h0, c0] = KEY_RGB[i];
+    const [h1, c1] = KEY_RGB[i + 1];
+    const k = Math.min(1, Math.max(0, (hour - h0) / (h1 - h0)));
+    return c0.map((c, j) => {
+      const base = mix(c, c1[j], k);
+      const l = 0.3 * base[0] + 0.59 * base[1] + 0.11 * base[2];
+      const grey = [l * 0.97, l, l * 1.06];
+      return mix(base, grey, w.grey).map((v) => v * (1 - w.rain * 0.18));
+    });
+  }
+
+  const canvas = $("sky");
+  const ctx = canvas.getContext("2d");
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let W = 0, H = 0;
+  const stars = Array.from({ length: 160 }, () => ({ x: Math.random(), y: Math.random() * 0.75, r: Math.random() * 1.1 + 0.3, a: Math.random() * 0.6 + 0.3, p: Math.random() * 6.28 }));
+  const clouds = Array.from({ length: 12 }, (_, i) => ({
+    x: Math.random() * 1.3 - 0.15, y: 0.06 + Math.random() * 0.5, s: 0.7 + Math.random() * 0.9,
+    v: 0.004 + Math.random() * 0.006, puffs: Array.from({ length: 6 }, () => [Math.random() * 1.6 - 0.8, Math.random() * 0.36 - 0.18, 0.35 + Math.random() * 0.4]), i,
+  }));
+  const drops = Array.from({ length: 170 }, () => ({ x: Math.random(), y: Math.random(), l: 12 + Math.random() * 12, v: 0.9 + Math.random() * 0.5 }));
+
+  function resize() {
+    const dpr = Math.min(devicePixelRatio || 1, 1.75);
+    W = innerWidth; H = innerHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  let weather = WEATHER[store.get("ap.weather")] ? store.get("ap.weather") : "clear";
+  let w = { ...WEATHER[weather] };
+  let override = null; // hora elegida en el control; null = hora real
+  const realHour = () => { const d = new Date(); return d.getHours() + d.getMinutes() / 60; };
+  const hourNow = () => (override ?? realHour());
+
+  function draw(time) {
+    // Transición suave entre climas.
+    const target = WEATHER[weather];
+    for (const k of ["grey", "cover", "cloudAlpha", "rain"]) w[k] += (target[k] - w[k]) * (reduceMotion ? 1 : 0.04);
+    const hour = hourNow();
+    const [top, mid, low] = skyColors(hour, w);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, css(top)); g.addColorStop(0.55, css(mid)); g.addColorStop(1, css(low));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    const dark = Math.min(1, Math.max(0, (0.2 - lum(mid)) / 0.14));
+    const s = time / 1000;
+
+    // Estrellas.
+    if (dark > 0.02) {
+      for (const st of stars) {
+        const a = st.a * dark * (1 - w.cover) * (reduceMotion ? 1 : 0.75 + 0.25 * Math.sin(s * 1.3 + st.p));
+        if (a < 0.02) continue;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.beginPath(); ctx.arc(st.x * W, st.y * H, st.r, 0, 6.283); ctx.fill();
+      }
+    }
+
+    // Sol, de 06:30 a 19:45; luna, de 20:00 a 06:00.
+    const R = Math.min(W, H);
+    if (hour > 6.3 && hour < 19.9) {
+      const p = (hour - 6.5) / 13.25;
+      const x = W * (0.1 + 0.8 * p), y = H * (0.78 - Math.sin(Math.PI * Math.min(1, Math.max(0, p))) * 0.62);
+      const warm = 1 - Math.sin(Math.PI * Math.min(1, Math.max(0, p)));
+      const vis = 1 - w.cover * 0.92;
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, R * 0.42);
+      glow.addColorStop(0, `rgba(255,${Math.round(236 - warm * 50)},${Math.round(200 - warm * 90)},${0.55 * vis})`);
+      glow.addColorStop(1, "rgba(255,240,200,0)");
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = `rgba(255,${Math.round(248 - warm * 40)},${Math.round(225 - warm * 80)},${0.95 * vis})`;
+      ctx.beginPath(); ctx.arc(x, y, Math.max(16, R * 0.035), 0, 6.283); ctx.fill();
+    }
+    const hh = hour < 12 ? hour + 24 : hour;
+    if (hh >= 20 && hh <= 30) {
+      const p = (hh - 20) / 10;
+      const x = W * (0.12 + 0.76 * p), y = H * (0.7 - Math.sin(Math.PI * p) * 0.55);
+      const vis = 1 - w.cover * 0.9;
+      const r = Math.max(13, R * 0.026);
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 7);
+      glow.addColorStop(0, `rgba(210,220,255,${0.22 * vis})`); glow.addColorStop(1, "rgba(210,220,255,0)");
+      ctx.fillStyle = glow; ctx.fillRect(x - r * 7, y - r * 7, r * 14, r * 14);
+      ctx.fillStyle = `rgba(244,242,230,${0.95 * vis})`;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+      ctx.fillStyle = css(skyColors(hour, w)[0], 0.9 * vis);
+      ctx.beginPath(); ctx.arc(x + r * 0.45, y - r * 0.2, r * 0.9, 0, 6.283); ctx.fill();
+    }
+
+    // Nubes.
+    const count = Math.round(3 + (WEATHER.rain.clouds - 3) * Math.min(1, w.cover / 0.97));
+    const shade = w.rain > 0.3 ? 0.78 : 1;
+    const day = 1 - dark;
+    const cloudColor = [
+      (255 * day + 120 * dark) * shade,
+      (255 * day + 130 * dark) * shade,
+      (255 * day + 165 * dark) * shade,
+    ];
+    for (const c of clouds) {
+      if (c.i >= count) continue;
+      if (!reduceMotion) { c.x += c.v * (1 + w.rain) / 60; if (c.x > 1.25) c.x = -0.3; }
+      const cx = c.x * W, cy = c.y * H, size = c.s * Math.max(90, W * 0.11);
+      const alpha = w.cloudAlpha * (c.i < 3 ? 1 : Math.min(1, w.cover * 1.2)) * (0.6 + 0.4 * day);
+      for (const [dx, dy, r] of c.puffs) {
+        const px = cx + dx * size, py = cy + dy * size, pr = r * size;
+        const gr = ctx.createRadialGradient(px, py, 0, px, py, pr);
+        gr.addColorStop(0, css(cloudColor, alpha * 0.55));
+        gr.addColorStop(1, css(cloudColor, 0));
+        ctx.fillStyle = gr;
+        ctx.beginPath(); ctx.arc(px, py, pr, 0, 6.283); ctx.fill();
+      }
+    }
+
+    // Lluvia.
+    if (w.rain > 0.05) {
+      ctx.strokeStyle = `rgba(210,220,240,${0.38 * w.rain})`;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      for (const d of drops) {
+        if (!reduceMotion) { d.y += (d.v * 900) / 60 / H; if (d.y > 1.05) { d.y = -0.05; d.x = Math.random(); } }
+        const x = d.x * W, y = d.y * H;
+        ctx.moveTo(x, y); ctx.lineTo(x - d.l * 0.25, y + d.l);
+      }
+      ctx.stroke();
+    }
+
+    // La interfaz sigue al cielo: noche cuando el centro del cielo se oscurece.
+    root.dataset.sky = lum(mid) < 0.16 ? "night" : "day";
+    const avg = lum(top) * 0.4 + lum(mid) * 0.45 + lum(low) * 0.15;
+    root.dataset.onSky = avg < 0.32 ? "light" : "dark";
+    root.style.setProperty("--sky-a", css(top));
+    root.style.setProperty("--sky-b", css(mid));
+    root.style.setProperty("--sky-c", css(low));
+    renderSkyIcon(hour);
+  }
+
+  let lastIcon = "";
+  function renderSkyIcon(hour) {
+    const icon = weather !== "clear" ? (weather === "rain" ? "#i-rain" : "#i-cloud") : hour > 6.3 && hour < 19.9 ? "#i-sun" : "#i-moon";
+    if (icon !== lastIcon) { $("sky-ico").firstElementChild.setAttribute("href", icon); lastIcon = icon; }
+  }
+  function renderSkyLabel() {
+    const h = hourNow();
+    const d = new Date(); d.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0);
+    const time = clock(d);
+    $("sky-label").textContent = `${override === null ? "" : `${t().showing} `}${time} · ${t().weather[weather]}`;
+    for (const b of document.querySelectorAll("[data-weather]")) b.setAttribute("aria-pressed", String(b.dataset.weather === weather));
+    $("sky-hour").value = String(Math.round(h * 4) / 4);
+  }
+
+  for (const b of document.querySelectorAll("[data-weather]")) {
+    b.addEventListener("click", () => { weather = b.dataset.weather; store.set("ap.weather", weather); renderSkyLabel(); if (reduceMotion) draw(performance.now()); });
+  }
+  $("sky-time-btn").addEventListener("click", () => {
+    const open = $("sky-time").hidden;
+    $("sky-time").hidden = !open;
+    $("sky-time-btn").setAttribute("aria-expanded", String(open));
+  });
+  $("sky-hour").addEventListener("input", (e) => { override = Number(e.target.value); renderSkyLabel(); if (reduceMotion) draw(performance.now()); });
+  $("sky-now").addEventListener("click", () => { override = null; renderSkyLabel(); if (reduceMotion) draw(performance.now()); });
+
+  resize();
+  addEventListener("resize", () => { resize(); if (reduceMotion) draw(performance.now()); });
+  applyLang(lang);
+  draw(performance.now());
+  setInterval(renderSkyLabel, 30000);
+  if (reduceMotion) {
+    setInterval(() => draw(performance.now()), 60000);
+  } else {
+    const loop = (time) => { if (!document.hidden) draw(time); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  }
 })();
 </script>
 

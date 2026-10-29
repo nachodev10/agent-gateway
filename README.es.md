@@ -408,7 +408,7 @@ Consola (token `agp_…` de una persona o token de administración):
 6. Detección de anomalías por agente: volumen, horario, herramientas nuevas.
 7. Gateway de modelos opcional para datos restringidos con un proveedor corporativo.
 
-Más detalle: [arquitectura y decisiones de diseño](docs/arquitectura.md), [qué está construido y qué falta](docs/estado.md) y una [plantilla de política BYOA](docs/politica-byoa.md) para tu equipo. La página de venta está en [site/index.html](site/index.html).
+Más detalle: [arquitectura y decisiones de diseño](docs/arquitectura.md), [qué está construido y qué falta](docs/estado.md) y una [plantilla de política BYOA](docs/politica-byoa.md) para tu equipo. La página de venta, en español e inglés y con un cielo que sigue la hora y el clima, está en [site/index.html](site/index.html).
 
 ### Estructura
 
