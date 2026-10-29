@@ -31,7 +31,7 @@ export class DiscoveryError extends Error {}
 const AI_AGENT_NAMES = [
   "chatgpt", "openai", "claude", "anthropic", "perplexity", "cursor", "copilot", "manus", "devin", "lindy",
   "relevance ai", "otter", "fireflies", "fathom", "read.ai", "granola", "superhuman", "jasper", "writesonic",
-  "poe", "grok", "mistral", "deepseek",
+  "poe", "grok", "grokbot", "mistral", "deepseek", "hermes", "muse", "dots", "windsurf", "gemini", "cline",
 ];
 const AUTOMATION_NAMES = ["zapier", "make", "make.com", "integromat", "n8n", "ifttt", "pipedream", "workato", "tray.io", "bardeen"];
 

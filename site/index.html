@@ -752,6 +752,13 @@ body { padding-block: 0 104px; }
             <input type="checkbox" id="a2" value="ChatGPT"><label class="chip" for="a2">ChatGPT</label>
             <input type="checkbox" id="a3" value="Cursor"><label class="chip" for="a3">Cursor</label>
             <input type="checkbox" id="a4" value="Copilot"><label class="chip" for="a4">Copilot</label>
+            <input type="checkbox" id="a6" value="Hermes"><label class="chip" for="a6">Hermes</label>
+            <input type="checkbox" id="a7" value="Muse"><label class="chip" for="a7">Muse</label>
+            <input type="checkbox" id="a8" value="Dots"><label class="chip" for="a8">Dots</label>
+            <input type="checkbox" id="a9" value="Grokbot"><label class="chip" for="a9">Grokbot</label>
+            <input type="checkbox" id="a10" value="Manus"><label class="chip" for="a10">Manus</label>
+            <input type="checkbox" id="a11" value="Gemini"><label class="chip" for="a11">Gemini</label>
+            <input type="checkbox" id="a12" value="other"><label class="chip" for="a12"><span data-l="es">Otros</span><span data-l="en">Others</span></label>
             <input type="checkbox" id="a5" value="vendors"><label class="chip" for="a5"><span data-l="es">De proveedores</span><span data-l="en">Vendors'</span></label>
           </div>
         </fieldset>
@@ -776,7 +783,7 @@ body { padding-block: 0 104px; }
 
 <footer>
   <span class="glass"><span class="wordmark" style="font-size: 15px">agente pass</span> · <span data-l="es">Agentes con responsable</span><span data-l="en">Agents with a human in charge</span></span>
-  <span class="glass"><span data-l="es">Hecho en Chile</span><span data-l="en">Made in Chile</span></span>
+  <span class="glass">Powered by DataMate</span>
 </footer>
 
 </div>
@@ -822,7 +829,7 @@ body { padding-block: 0 104px; }
       hello: "Hola, quiero una demo de Agente Pass.",
       name: "Nombre", company: "Empresa", email: "Correo", people: "Personas que usan agentes", agents: "Agentes", goal: "Lo que buscamos",
       sizes: { 1: "1 a 10", 2: "11 a 50", 3: "Más de 50" },
-      vendors: "Agentes de proveedores", tbd: "Por definir",
+      vendors: "Agentes de proveedores", others: "Otros", tbd: "Por definir",
       copied: "Copiada", selected: "Seleccionada: cópiala con tu teclado", copy: "Copiar la solicitud",
       weather: { clear: "Despejado", cloudy: "Nublado", rain: "Lluvia" },
       showing: "Cielo de las",
@@ -840,7 +847,7 @@ body { padding-block: 0 104px; }
       hello: "Hi, I'd like a demo of Agente Pass.",
       name: "Name", company: "Company", email: "Email", people: "People using agents", agents: "Agents", goal: "What we're after",
       sizes: { 1: "1 to 10", 2: "11 to 50", 3: "More than 50" },
-      vendors: "Vendor agents", tbd: "To be decided",
+      vendors: "Vendor agents", others: "Others", tbd: "To be decided",
       copied: "Copied", selected: "Selected: copy it with your keyboard", copy: "Copy the request",
       weather: { clear: "Clear", cloudy: "Cloudy", rain: "Rain" },
       showing: "Sky at",
@@ -902,7 +909,7 @@ body { padding-block: 0 104px; }
   const summary = $("summary");
   function buildSummary() {
     const s = t();
-    const agents = [...form.querySelectorAll(".picks input:checked")].map((i) => (i.value === "vendors" ? s.vendors : i.value));
+    const agents = [...form.querySelectorAll(".picks input:checked")].map((i) => (i.value === "vendors" ? s.vendors : i.value === "other" ? s.others : i.value));
     const lines = [
       s.hello, "",
       `${s.name}: ${$("f-name").value.trim()}`,

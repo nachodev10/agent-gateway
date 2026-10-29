@@ -130,6 +130,8 @@ describe("descubrimiento de agentes ya conectados", () => {
     expect(classify("ChatGPT", [`${G}gmail.send`])).toEqual({ kind: "ai_agent", risk: "high" });
     expect(classify("Asistente de ventas", ["Mail.Read"])).toEqual({ kind: "ai_agent", risk: "medium" });
     expect(classify("n8n", [`${G}drive.file`])).toEqual({ kind: "automation", risk: "low" });
+    for (const name of ["Hermes", "Muse", "Dots", "Grokbot"]) expect(classify(name, ["openid"]).kind).toBe("ai_agent");
+    expect(classify("Dotsworth Billing", ["openid"]).kind).toBe("other");
     expect(classify("Maker Studio", ["openid"])).toEqual({ kind: "other", risk: "low" });
     expect(classify("Contador Pro", ["openid"], ["contador pro"])).toEqual({ kind: "ai_agent", risk: "low" });
     expect(classify("Raid Planner", ["Tasks.ReadWrite"])).toMatchObject({ kind: "other", risk: "medium" });
