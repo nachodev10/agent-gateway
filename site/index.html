@@ -398,6 +398,17 @@ body { padding-block: 0 104px; }
 .code-card > * { min-width: 0; }
 .wordmark { white-space: nowrap; }
 @media (max-width: 520px) { .tabs a.cta { display: none; } .brand { padding: 10px 14px; } }
+
+/* Opciones del formulario: la regla de las etiquetas les quitaba el relleno y se veían como manchas blancas. */
+.field .picks label.chip {
+  padding: 8px 14px; font-size: 14px; font-weight: 500; color: var(--ink);
+  background: var(--card-2); box-shadow: 0 0 0 1px var(--hair) inset;
+  -webkit-backdrop-filter: none; backdrop-filter: none; transition: background .15s ease;
+}
+.field .picks { gap: 8px; padding-top: 2px; }
+.field .picks label.chip:hover { background: var(--track); }
+.field .picks input:checked + label.chip { background: var(--ink); color: var(--ink-inv); box-shadow: none; }
+.field .picks input:focus-visible + label.chip { outline: 2px solid var(--ink); outline-offset: 2px; }
 </style>
 
 <div class="sky" aria-hidden="true"><canvas id="sky"></canvas></div>
@@ -759,7 +770,7 @@ body { padding-block: 0 104px; }
             <input type="checkbox" id="a10" value="Manus"><label class="chip" for="a10">Manus</label>
             <input type="checkbox" id="a11" value="Gemini"><label class="chip" for="a11">Gemini</label>
             <input type="checkbox" id="a12" value="other"><label class="chip" for="a12"><span data-l="es">Otros</span><span data-l="en">Others</span></label>
-            <input type="checkbox" id="a5" value="vendors"><label class="chip" for="a5"><span data-l="es">De proveedores</span><span data-l="en">Vendors'</span></label>
+            <input type="checkbox" id="a5" value="vendors"><label class="chip" for="a5"><span data-l="es">De proveedores</span><span data-l="en">Vendor agents</span></label>
           </div>
         </fieldset>
         <div class="field"><label for="f-note"><span data-l="es">Qué te gustaría que hicieran</span><span data-l="en">What you'd like them to do</span></label><textarea id="f-note" name="note" data-ph-es="Que los agentes de ventas preparen cotizaciones y que yo firme antes de enviarlas." data-ph-en="Have sales agents draft quotes, and I sign off before they're sent."></textarea></div>
