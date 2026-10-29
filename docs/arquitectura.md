@@ -1,5 +1,7 @@
 # Arquitectura y decisiones de diseño
 
+[English](architecture.md) · **Español**
+
 ## El problema
 
 Los empleados adoptan agentes de IA más rápido de lo que la empresa los puede evaluar. Cuando se prohíben, siguen usándose con cuentas personales y copiando datos a mano: la empresa pierde visibilidad y control. El modelo BYOD resolvió algo parecido con los teléfonos personales: no se prohibió el dispositivo, se separó lo corporativo y se gobernó ese espacio.

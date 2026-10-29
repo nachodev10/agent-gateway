@@ -1,5 +1,7 @@
 # Política de agentes personales (BYOA) y acuerdo de uso responsable
 
+[English](byoa-policy.md) · **Español**
+
 > Plantilla de referencia, versión 2026-10. Adáptala con tu asesoría legal y laboral antes de adoptarla. En Chile, incorpórala al Reglamento Interno de Orden, Higiene y Seguridad y comunícala a todo el personal.
 
 ## 1. Propósito

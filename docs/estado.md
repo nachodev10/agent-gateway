@@ -1,5 +1,7 @@
 # Estado del producto
 
+[English](status.md) · **Español**
+
 Qué está construido y probado, qué está a medias y qué falta. Revisado el 28 de octubre de 2026 contra el código de este repositorio y el de Soul.
 
 Lo que está construido tiene pruebas automáticas (58 en este repositorio) y CI en verde. Además, la herramienta real de Claude Code (`claude mcp add` y `claude mcp list`) se conectó al gateway por MCP.
@@ -35,6 +37,7 @@ Lo que está construido tiene pruebas automáticas (58 en este repositorio) y CI
 - **Agentes de terceros.** Necesitan un programa que firme cada llamada con su clave (ver `examples/third-party-agent.ts`). Claude Code y Cursor no lo hacen todavía.
 - **Descubrimiento.** Se probó con APIs de Google y Microsoft simuladas, no con un dominio real. Solo ve accesos OAuth: no detecta agentes que usan una contraseña guardada o un navegador, ni permisos de aplicación (solo los delegados) en Microsoft.
 - **Clientes probados.** Solo Claude Code. Otros clientes MCP deberían funcionar, pero no se han probado.
+- **Idioma.** Los comentarios del código, la consola web y los datos de la demo están en español. El README, la guía para contribuir y la documentación están en inglés y español.
 
 ## Falta
 
