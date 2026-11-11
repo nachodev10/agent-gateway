@@ -35,17 +35,18 @@ export interface GuardrailInput {
   now: Date;
 }
 
-/** Señales frecuentes de inyección de instrucciones, en español e inglés. */
+/** Señales frecuentes de inyección de instrucciones, en español, inglés y portugués. */
 const INJECTION_PATTERNS: { label: string; regex: RegExp }[] = [
   { label: "ignorar instrucciones", regex: /\b(ignore|disregard|forget)\s+(all\s+|any\s+)?(the\s+|your\s+)?(previous|prior|above|earlier)\s+(instructions|rules|prompts?|messages)/i },
   { label: "ignorar instrucciones", regex: /\b(ignora|olvida|omite|descarta)\s+(todas\s+)?(las\s+|tus\s+)?(instrucciones|reglas|indicaciones)\s+(anteriores|previas)/i },
-  { label: "nuevas instrucciones", regex: /\b(new|updated)\s+instructions\s*:|\bnuevas\s+instrucciones\s*:/i },
-  { label: "cambio de rol", regex: /\byou\s+are\s+now\b|\ba\s+partir\s+de\s+ahora\s+(eres|actuar[aá]s)\b/i },
-  { label: "extraer el prompt", regex: /\b(reveal|print|show|repeat)\s+(your|the)\s+(system\s+prompt|instructions)|\b(revela|muestra|repite)\s+(tu|el)\s+(prompt|mensaje\s+de\s+sistema|instrucciones)/i },
+  { label: "ignorar instrucciones", regex: /\b(ignore|ignorar|esque[çc]a|desconsidere|desconsiderar)\s+(todas\s+)?(as\s+|suas\s+)?(instru[çc][õo]es|regras|orienta[çc][õo]es|diretrizes)\s+(anteriores|pr[ée]vias)/i },
+  { label: "nuevas instrucciones", regex: /\b(new|updated)\s+instructions\s*:|\bnuevas\s+instrucciones\s*:|\bnovas\s+instru[çc][õo]es\s*:/i },
+  { label: "cambio de rol", regex: /\byou\s+are\s+now\b|\ba\s+partir\s+de\s+ahora\s+(eres|actuar[aá]s)\b|\ba\s+partir\s+de\s+agora\s+voc[êe]\s+([ée]|ser[áa]|vai\s+atuar)\b/i },
+  { label: "extraer el prompt", regex: /\b(reveal|print|show|repeat)\s+(your|the)\s+(system\s+prompt|instructions)|\b(revela|muestra|repite)\s+(tu|el)\s+(prompt|mensaje\s+de\s+sistema|instrucciones)|\b(revele|mostre|repita|imprima)\s+(o\s+seu|seu|o|suas|as)\s+(prompt|mensagem\s+do\s+sistema|instru[çc][õo]es)/i },
   { label: "etiquetas de sistema", regex: /<\/?\s*system\s*>|\[\s*system\s*\]|BEGIN\s+SYSTEM\s+PROMPT/i },
   {
     label: "exfiltración",
-    regex: /\b(send|forward|upload|post)\b[^.\n]{0,80}\b(to|a)\s+(https?:\/\/|[\w.+-]+@[\w-]+\.)|\b(env[ií]a|reenv[ií]a|sube)\b[^.\n]{0,80}\ba\s+(https?:\/\/|[\w.+-]+@[\w-]+\.)/i,
+    regex: /\b(send|forward|upload|post)\b[^.\n]{0,80}\b(to|a)\s+(https?:\/\/|[\w.+-]+@[\w-]+\.)|\b(env[ií]a|reenv[ií]a|sube)\b[^.\n]{0,80}\ba\s+(https?:\/\/|[\w.+-]+@[\w-]+\.)|\b(envie|encaminhe)\b[^.\n]{0,80}\bpara\s+(https?:\/\/|[\w.+-]+@[\w-]+\.)/i,
   },
 ];
 
